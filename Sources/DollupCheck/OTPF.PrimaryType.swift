@@ -59,10 +59,10 @@ extension OTPF.PrimaryType {
 
         var scope: String = ""
         var remainder: Substring = rawScope
-        while let dotIndex: Substring.Index = remainder.firstIndex(of: ".") {
-            scope.append(Self.unencase(remainder[..<dotIndex]).unencased)
+        while let dot: Substring.Index = remainder.firstIndex(of: ".") {
+            scope.append(Self.unencase(remainder[..<dot]).unencased)
             scope.append(".")
-            remainder = remainder[remainder.index(after: dotIndex)...]
+            remainder = remainder[remainder.index(after: dot)...]
         }
         scope.append(Self.unencase(remainder).unencased)
 

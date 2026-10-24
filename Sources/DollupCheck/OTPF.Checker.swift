@@ -21,7 +21,7 @@ extension OTPF {
 
 extension OTPF.Checker {
     mutating func check() -> [Diagnostic] {
-        guard let fileClass: OTPF.FileClass = .init(filename: self.file, in: self.path) else {
+        guard let fileClass: OTPF.FileClass = .init(file: self.file, in: self.path) else {
             return []
         }
 

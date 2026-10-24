@@ -12,13 +12,13 @@ extension OTPF {
 extension OTPF.FileClass: Hashable {}
 
 extension OTPF.FileClass {
-    public init?(filename: String, in path: FilePath? = nil) {
-        guard filename.hasSuffix(".swift") else {
+    public init?(file: String, in path: FilePath? = nil) {
+        guard file.hasSuffix(".swift") else {
             return nil
         }
 
-        let stemEnd: String.Index = filename.index(filename.endIndex, offsetBy: -6)
-        let stem: Substring = filename[..<stemEnd]
+        let stemEnd: String.Index = file.index(file.endIndex, offsetBy: -6)
+        let stem: Substring = file[..<stemEnd]
 
         if  let special: Special = Special.init(rawValue: String.init(stem)) {
             if  case .Package = special, let path, path.components.count > 1 {

@@ -44,35 +44,35 @@ import Testing
         #expect(nestedKeyword.description == "Outer.`default`")
         #expect(nestedKeyword == "Outer.default")
 
-        let encasedScope: OTPF.PrimaryType = "`Outer`.Inner"
-        #expect(encasedScope.scope == "Outer")
-        #expect(encasedScope.last == "Inner")
-        #expect(!encasedScope.encased)
-        #expect(encasedScope.unencased == "Outer.Inner")
-        #expect(encasedScope.description == "Outer.Inner")
+        let encased: OTPF.PrimaryType = "`Outer`.Inner"
+        #expect(encased.scope == "Outer")
+        #expect(encased.last == "Inner")
+        #expect(!encased.encased)
+        #expect(encased.unencased == "Outer.Inner")
+        #expect(encased.description == "Outer.Inner")
 
-        let deepEncasedScope: OTPF.PrimaryType = "`A`.`B`.`C`"
-        #expect(deepEncasedScope.scope == "A.B")
-        #expect(deepEncasedScope.last == "C")
-        #expect(deepEncasedScope.encased)
-        #expect(deepEncasedScope.unencased == "A.B.C")
-        #expect(deepEncasedScope.description == "A.B.`C`")
+        let deepEncased: OTPF.PrimaryType = "`A`.`B`.`C`"
+        #expect(deepEncased.scope == "A.B")
+        #expect(deepEncased.last == "C")
+        #expect(deepEncased.encased)
+        #expect(deepEncased.unencased == "A.B.C")
+        #expect(deepEncased.description == "A.B.`C`")
     }
 
     @Test static func FileClassClassification() {
-        #expect(OTPF.FileClass.init(filename: "Package.swift") == .special(.Package))
-        #expect(OTPF.FileClass.init(filename: "anchor.swift") == .special(.anchor))
-        #expect(OTPF.FileClass.init(filename: "exports.swift") == .special(.exports))
-        #expect(OTPF.FileClass.init(filename: "lexemes.swift") == .special(.lexemes))
-        #expect(OTPF.FileClass.init(filename: "operators.swift") == .special(.operators))
+        #expect(OTPF.FileClass.init(file: "Package.swift") == .special(.Package))
+        #expect(OTPF.FileClass.init(file: "anchor.swift") == .special(.anchor))
+        #expect(OTPF.FileClass.init(file: "exports.swift") == .special(.exports))
+        #expect(OTPF.FileClass.init(file: "lexemes.swift") == .special(.lexemes))
+        #expect(OTPF.FileClass.init(file: "operators.swift") == .special(.operators))
 
-        #expect(OTPF.FileClass.init(filename: "Foo (ext).swift") == .ext("Foo"))
-        #expect(OTPF.FileClass.init(filename: "Outer.Inner (ext).swift") == .ext("Outer.Inner"))
-        #expect(OTPF.FileClass.init(filename: "Foo (gen).swift") == .gen("Foo"))
+        #expect(OTPF.FileClass.init(file: "Foo (ext).swift") == .ext("Foo"))
+        #expect(OTPF.FileClass.init(file: "Outer.Inner (ext).swift") == .ext("Outer.Inner"))
+        #expect(OTPF.FileClass.init(file: "Foo (gen).swift") == .gen("Foo"))
 
-        #expect(OTPF.FileClass.init(filename: "Foo.swift") == .layout("Foo"))
-        #expect(OTPF.FileClass.init(filename: "Outer.Inner.swift") == .layout("Outer.Inner"))
-        #expect(OTPF.FileClass.init(filename: "README.md") == nil)
+        #expect(OTPF.FileClass.init(file: "Foo.swift") == .layout("Foo"))
+        #expect(OTPF.FileClass.init(file: "Outer.Inner.swift") == .layout("Outer.Inner"))
+        #expect(OTPF.FileClass.init(file: "README.md") == nil)
     }
 
     @Test static func LayoutFileWithBacktickKeyword() {
