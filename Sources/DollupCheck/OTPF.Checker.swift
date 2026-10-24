@@ -497,7 +497,7 @@ extension OTPF.Checker {
             if  let typealiasDeclaration: TypeAliasDeclSyntax = declaration.as(
                     TypeAliasDeclSyntax.self
                 ) {
-                if  self.deprecationShim(typealiasDeclaration, for: primaryType.last) {
+                if  Self.deprecationShim(typealiasDeclaration, for: primaryType.last) {
                     continue
                 }
                 if  case _? = matchingPrimaryDeclaration {
@@ -698,7 +698,7 @@ extension OTPF.Checker {
         return (keynum: true, simple: cases)
     }
 
-    private func deprecationShim(
+    private static func deprecationShim(
         _ alias: TypeAliasDeclSyntax,
         for expectedType: String
     ) -> Bool {
