@@ -16,9 +16,9 @@ Dollup takes a different approach. It makes an effort to segregate formatting pa
 <!-- DO NOT EDIT BELOW! AUTOSYNC CONTENT [STATUS TABLE] -->
 | Platform | Status |
 | -------- | ------ |
-| 🐧 Linux | [![Status](https://raw.githubusercontent.com/tayloraswift/dollup/refs/badges/ci/Tests/Linux/status.svg)](https://github.com/tayloraswift/dollup/actions/workflows/Tests.yml) |
-| 🍏 Darwin | [![Status](https://raw.githubusercontent.com/tayloraswift/dollup/refs/badges/ci/Tests/macOS/status.svg)](https://github.com/tayloraswift/dollup/actions/workflows/Tests.yml) |
-| 💝 Release | [![Status](https://raw.githubusercontent.com/tayloraswift/dollup/refs/badges/ci/SemanticRelease/_all/status.svg)](https://github.com/tayloraswift/dollup/actions/workflows/SemanticRelease.yml) |
+| 🐧 Linux | [![Status](https://raw.githubusercontent.com/rarestype/dollup/refs/badges/ci/Tests/Linux/status.svg)](https://github.com/rarestype/dollup/actions/workflows/Tests.yml) |
+| 🍏 Darwin | [![Status](https://raw.githubusercontent.com/rarestype/dollup/refs/badges/ci/Tests/macOS/status.svg)](https://github.com/rarestype/dollup/actions/workflows/Tests.yml) |
+| 💝 Release | [![Status](https://raw.githubusercontent.com/rarestype/dollup/refs/badges/ci/SemanticRelease/_all/status.svg)](https://github.com/rarestype/dollup/actions/workflows/SemanticRelease.yml) |
 <!-- DO NOT EDIT ABOVE! AUTOSYNC CONTENT [STATUS TABLE] -->
 
 ## Using prebuilt binaries
