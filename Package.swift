@@ -9,6 +9,7 @@ let package = Package(
     products: [
         .executable(name: "dollup", targets: ["DollupTool"]),
         .library(name: "Dollup", targets: ["Dollup"]),
+        .library(name: "DollupCheck", targets: ["DollupCheck"]),
         .library(name: "DollupConfig", targets: ["DollupConfig"]),
     ],
     dependencies: [
@@ -28,6 +29,7 @@ let package = Package(
             name: "DollupConfig",
             dependencies: [
                 .target(name: "Dollup"),
+                .target(name: "DollupCheck"),
                 .product(name: "SHA2", package: "h"),
                 .product(name: "System_ArgumentParser", package: "swift-io"),
                 .product(name: "SystemIO", package: "swift-io"),
@@ -36,7 +38,13 @@ let package = Package(
         .target(
             name: "Dollup",
             dependencies: [
+                .target(name: "DollupCheck"),
                 .target(name: "WhitespaceFormatter"),
+            ]
+        ),
+        .target(
+            name: "DollupCheck",
+            dependencies: [
                 .product(name: "SwiftDiagnostics", package: "swift-syntax"),
                 .product(name: "SwiftParser", package: "swift-syntax"),
                 .product(name: "SwiftSyntax", package: "swift-syntax"),
@@ -53,9 +61,9 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "DollupTests",
+            name: "DollupCheckTests",
             dependencies: [
-                .target(name: "Dollup"),
+                .target(name: "DollupCheck"),
             ]
         ),
         .testTarget(

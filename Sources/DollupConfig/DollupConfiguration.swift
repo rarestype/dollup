@@ -1,4 +1,5 @@
 import Dollup
+import DollupCheck
 import SystemIO
 
 public protocol DollupConfiguration {

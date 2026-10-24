@@ -1,4 +1,4 @@
-import Dollup
+import DollupCheck
 import SwiftDiagnostics
 import SystemIO
 import Testing
