@@ -2,18 +2,16 @@ import SwiftSyntax
 
 extension MemberBlockItemListSyntax {
     var unrolled: [MemberBlockItemSyntax] {
-        var result: [MemberBlockItemSyntax] = []
-        for member: MemberBlockItemSyntax in self {
-            if  let ifConfig: IfConfigDeclSyntax = member.decl.as(IfConfigDeclSyntax.self) {
+        self.reduce(into: []) {
+            if  let ifConfig: IfConfigDeclSyntax = $1.decl.as(IfConfigDeclSyntax.self) {
                 for clause: IfConfigClauseSyntax in ifConfig.clauses {
                     if  case .decls(let nested)? = clause.elements {
-                        result.append(contentsOf: nested.unrolled)
+                        $0.append(contentsOf: nested.unrolled)
                     }
                 }
             } else {
-                result.append(member)
+                $0.append($1)
             }
         }
-        return result
     }
 }

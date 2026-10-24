@@ -2,19 +2,17 @@ import SwiftSyntax
 
 extension CodeBlockItemListSyntax {
     var unrolled: [CodeBlockItemSyntax] {
-        var result: [CodeBlockItemSyntax] = []
-        for item: CodeBlockItemSyntax in self {
-            if  case .decl(let declaration) = item.item,
+        self.reduce(into: []) {
+            if  case .decl(let declaration) = $1.item,
                 let ifConfig: IfConfigDeclSyntax = declaration.as(IfConfigDeclSyntax.self) {
                 for clause: IfConfigClauseSyntax in ifConfig.clauses {
                     if  case .statements(let nested)? = clause.elements {
-                        result.append(contentsOf: nested.unrolled)
+                        $0.append(contentsOf: nested.unrolled)
                     }
                 }
             } else {
-                result.append(item)
+                $0.append($1)
             }
         }
-        return result
     }
 }

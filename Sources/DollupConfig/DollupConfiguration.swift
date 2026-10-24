@@ -70,7 +70,9 @@ extension DollupConfiguration {
             try file.overwrite(with: [UInt8].init(formatted.utf8)[...])
         }
     }
+}
 
+extension DollupConfiguration {
     public static func check(in path: FilePath) throws -> [DollupCheck.Diagnostics] {
         guard
         let status: FileStatus = try path.status else {

@@ -14,6 +14,10 @@ extension OTPF {
 
 extension OTPF.PrimaryType {
     public init(_ name: String) {
+        self.init(name[...])
+    }
+
+    public init(_ name: Substring) {
         let (scope, last, encased): (String?, String, Bool) = Self.parse(name)
         self.init(scope: scope, last: last, encased: encased)
     }
@@ -32,12 +36,12 @@ extension OTPF.PrimaryType {
 }
 
 extension OTPF.PrimaryType {
-    private static func parse(_ string: String) -> (
+    private static func parse(_ string: Substring) -> (
         scope: String?,
         last: String,
         encased: Bool
     ) {
-        var raw: Substring = string[...]
+        var raw: Substring = string
         while let first: Character = raw.first, first.isWhitespace {
             raw = raw.dropFirst()
         }
@@ -46,7 +50,7 @@ extension OTPF.PrimaryType {
         }
 
         guard let dot: Substring.Index = raw.lastIndex(of: ".") else {
-            let (last, encased): (String, Bool) = Self.unencase(String.init(raw))
+            let (last, encased): (String, Bool) = Self.unencase(raw)
             return (nil, last, encased)
         }
 
@@ -55,24 +59,25 @@ extension OTPF.PrimaryType {
 
         let scope: String = rawScope
             .split(separator: ".")
-            .map { Self.unencase(String.init($0)).unencased }
+            .map { Self.unencase($0).unencased }
             .joined(separator: ".")
 
-        let (last, encased): (String, Bool) = Self.unencase(String.init(rawLast))
+        let (last, encased): (String, Bool) = Self.unencase(rawLast)
         return (scope, last, encased)
     }
 
-    private static func unencase(_ token: String) -> (unencased: String, encased: Bool) {
+    private static func unencase(_ token: Substring) -> (unencased: String, encased: Bool) {
         if  token.hasPrefix("`"), token.hasSuffix("`"), token.count >= 2 {
-            return (String.init(token.dropFirst().dropLast()), true)
+            let inner: Substring = token.dropFirst().dropLast()
+            return (String.init(inner), true)
         }
-        return (token, false)
+        return (String.init(token), false)
     }
 }
 
 extension OTPF.PrimaryType: Equatable {
     public static func == (a: Self, b: Self) -> Bool {
-        a.scope == b.scope && a.last == b.last
+        (a.scope, a.last) == (b.scope, b.last)
     }
 }
 

@@ -4,15 +4,15 @@ import SystemIO
 
 extension OTPF {
     struct Checker {
-        let file: FilePath
-        let filename: String
+        let path: FilePath
+        let file: String
         let tree: SourceFileSyntax
 
         var diagnostics: [Diagnostic]
 
-        init(tree: SourceFileSyntax, file: FilePath) {
-            self.file = file
-            self.filename = file.lastComponent?.string ?? ""
+        init(tree: SourceFileSyntax, path: FilePath) {
+            self.path = path
+            self.file = path.lastComponent?.string ?? ""
             self.tree = tree
             self.diagnostics = []
         }
@@ -21,11 +21,11 @@ extension OTPF {
 
 extension OTPF.Checker {
     mutating func check() -> [Diagnostic] {
-        guard let fileClass: OTPF.FileClass = .init(filename: self.filename) else {
+        guard let fileClass: OTPF.FileClass = .init(filename: self.file) else {
             return []
         }
 
-        if  self.filename.contains("+") {
+        if  self.file.contains("+") {
             self.diagnose(
                 node: .init(self.tree),
                 message: """
@@ -100,7 +100,8 @@ extension OTPF.Checker {
 
         case .operators:
             for statement: CodeBlockItemSyntax in self.tree.statements.unrolled {
-                if  case .decl(let declaration) = statement.item, declaration.primaryType {
+                if  case .decl(let declaration) = statement.item,
+                    case _? = declaration.primaryType {
                     self.diagnose(
                         node: .init(declaration),
                         message: """
@@ -146,7 +147,7 @@ extension OTPF.Checker {
                         node: .init(statement),
                         message: """
                         extension file '\(
-                            self.filename
+                            self.file
                         )' cannot contain top-level executable statements
                         """
                     )
@@ -166,8 +167,8 @@ extension OTPF.Checker {
                     self.diagnose(
                         node: .init(extensionDeclaration),
                         message: """
-                        extension file '\(self.filename)' cannot contain extension to '\(
-                            extensionDeclaration.extendedType.trimmedDescription
+                        extension file '\(self.file)' cannot contain extension to '\(
+                            "\(extensionDeclaration.extendedType.trimmed)"
                         )'; it must only extend '\(
                             expectedType.description
                         )'
@@ -181,12 +182,13 @@ extension OTPF.Checker {
                 continue
             }
 
-            if  declaration.primaryType {
-                let name: String = declaration.primaryTypeName ?? "unnamed"
+            if  let declaredType: OTPF.PrimaryType = declaration.primaryType {
                 self.diagnose(
                     node: .init(declaration),
                     message: """
-                    extension file '\(self.filename)' cannot define primary type '\(name)'
+                    extension file '\(self.file)' cannot define primary type '\(
+                        declaredType.last
+                    )'
                     """
                 )
                 continue
@@ -198,7 +200,7 @@ extension OTPF.Checker {
                 self.diagnose(
                     node: .init(declaration),
                     message: """
-                    extension file '\(self.filename)' cannot contain free function '\(
+                    extension file '\(self.file)' cannot contain free function '\(
                         functionDeclaration.name.text
                     )'
                     """
@@ -210,7 +212,7 @@ extension OTPF.Checker {
                 self.diagnose(
                     node: .init(declaration),
                     message: """
-                    extension file '\(self.filename)' cannot contain top-level properties
+                    extension file '\(self.file)' cannot contain top-level properties
                     """
                 )
                 continue
@@ -223,10 +225,8 @@ extension OTPF.Checker {
         let matchingPrimaryDeclaration: DeclSyntax?
         if !primaryType.nested {
             matchingPrimaryDeclaration = statements.compactMap {
-                (statement: CodeBlockItemSyntax) -> DeclSyntax? in
-                guard case .decl(let declaration) = statement.item,
-                declaration.primaryType,
-                declaration.primaryTypeName == primaryType.last else {
+                guard case .decl(let declaration) = $0.item,
+                declaration.primaryType?.last == primaryType.last else {
                     return nil
                 }
                 return declaration
@@ -243,12 +243,12 @@ extension OTPF.Checker {
 
         for statement: CodeBlockItemSyntax in statements {
             guard case .decl(let declaration) = statement.item else {
-                if  self.filename != "main.swift", !statement.item.is(ImportDeclSyntax.self) {
+                if  self.file != "main.swift", !statement.item.is(ImportDeclSyntax.self) {
                     self.diagnose(
                         node: .init(statement),
                         message: """
                         layout file '\(
-                            self.filename
+                            self.file
                         )' cannot contain top-level executable statements
                         """
                     )
@@ -277,7 +277,7 @@ extension OTPF.Checker {
                             node: .init(extensionDeclaration),
                             message: """
                             layout file '\(
-                                self.filename
+                                self.file
                             )' must contain only one extension to namespace '\(
                                 scope
                             )'
@@ -285,9 +285,8 @@ extension OTPF.Checker {
                         )
                     }
                     for member: MemberBlockItemSyntax in extensionDeclaration.memberBlock.members.unrolled {
-                        if  member.decl.primaryType {
-                            let name: String = member.decl.primaryTypeName ?? ""
-                            if  name == primaryType.last {
+                        if  let memberType: OTPF.PrimaryType = member.decl.primaryType {
+                            if  memberType.last == primaryType.last {
                                 primaryTypeFound = true
                                 self.checkNestedMembers(
                                     member.decl,
@@ -298,7 +297,7 @@ extension OTPF.Checker {
                                     node: .init(member.decl),
                                     message: """
                                     foreign extension to '\(scope)' in '\(
-                                        self.filename
+                                        self.file
                                     )' must contain nothing except the definition of '\(
                                         primaryType.last
                                     )'
@@ -315,7 +314,7 @@ extension OTPF.Checker {
                                     node: .init(typealiasDeclaration),
                                     message: """
                                     foreign extension to '\(scope)' in '\(
-                                        self.filename
+                                        self.file
                                     )' must contain nothing except the definition of '\(
                                         primaryType.last
                                     )'
@@ -327,7 +326,7 @@ extension OTPF.Checker {
                                 node: .init(member.decl),
                                 message: """
                                 foreign extension to '\(scope)' in '\(
-                                    self.filename
+                                    self.file
                                 )' must contain nothing except the definition of '\(
                                     primaryType.last
                                 )'
@@ -340,9 +339,9 @@ extension OTPF.Checker {
                         node: .init(extensionDeclaration),
                         message: """
                         layout file '\(
-                            self.filename
+                            self.file
                         )' cannot contain extension to foreign type '\(
-                            extensionDeclaration.extendedType.trimmedDescription
+                            "\(extensionDeclaration.extendedType.trimmed)"
                         )'
                         """
                     )
@@ -350,8 +349,8 @@ extension OTPF.Checker {
                 continue
             }
 
-            if  declaration.primaryType {
-                let name: String = declaration.primaryTypeName ?? "unnamed"
+            if  let declaredType: OTPF.PrimaryType = declaration.primaryType {
+                let name: String = declaredType.last
                 if  primaryType.nested {
                     self.diagnose(
                         node: .init(declaration),
@@ -359,7 +358,7 @@ extension OTPF.Checker {
                         one type per file violation: found top-level type '\(
                             name
                         )' in nested layout file '\(
-                            self.filename
+                            self.file
                         )'
                         """
                     )
@@ -371,7 +370,7 @@ extension OTPF.Checker {
                         node: .init(declaration),
                         message: """
                         one type per file violation: found type '\(name)' in file '\(
-                            self.filename
+                            self.file
                         )' which defines '\(
                             primaryType.last
                         )'
@@ -382,7 +381,7 @@ extension OTPF.Checker {
                         self.diagnose(
                             node: .init(declaration),
                             message: """
-                            type '\(name)' does not match filename '\(self.filename)'
+                            type '\(name)' does not match filename '\(self.file)'
                             """
                         )
                     } else {
@@ -390,7 +389,7 @@ extension OTPF.Checker {
                             node: .init(declaration),
                             message: """
                             one type per file violation: found type '\(name)' in file '\(
-                                self.filename
+                                self.file
                             )'
                             """
                         )
@@ -410,7 +409,7 @@ extension OTPF.Checker {
                         free function '\(
                             functionDeclaration.name.text
                         )' cannot appear in nested layout file '\(
-                            self.filename
+                            self.file
                         )'
                         """
                     )
@@ -423,7 +422,7 @@ extension OTPF.Checker {
                         )' cannot coexist with type '\(
                             primaryType.last
                         )' in '\(
-                            self.filename
+                            self.file
                         )'
                         """
                     )
@@ -436,7 +435,7 @@ extension OTPF.Checker {
                         free function '\(
                             functionDeclaration.name.text
                         )' does not match filename '\(
-                            self.filename
+                            self.file
                         )'
                         """
                     )
@@ -452,7 +451,7 @@ extension OTPF.Checker {
                         macro '\(
                             macroDeclaration.name.text
                         )' cannot coexist with type '\(primaryType.last)' in '\(
-                            self.filename
+                            self.file
                         )'
                         """
                     )
@@ -463,7 +462,7 @@ extension OTPF.Checker {
                         node: .init(declaration),
                         message: """
                         macro '\(macroDeclaration.name.text)' does not match filename '\(
-                            self.filename
+                            self.file
                         )'
                         """
                     )
@@ -486,7 +485,7 @@ extension OTPF.Checker {
                         )' cannot coexist with type '\(
                             primaryType.last
                         )' in '\(
-                            self.filename
+                            self.file
                         )'
                         """
                     )
@@ -499,7 +498,7 @@ extension OTPF.Checker {
                         typealias '\(
                             typealiasDeclaration.name.text
                         )' does not match filename '\(
-                            self.filename
+                            self.file
                         )'
                         """
                     )
@@ -511,7 +510,7 @@ extension OTPF.Checker {
                     VariableDeclSyntax.self
                 ) {
                 for binding: PatternBindingSyntax in variableDeclaration.bindings {
-                    let propertyName: String = binding.pattern.trimmedDescription
+                    let propertyName: String = "\(binding.pattern.trimmed)"
                     if  case _? = matchingPrimaryDeclaration {
                         self.diagnose(
                             node: .init(declaration),
@@ -519,7 +518,7 @@ extension OTPF.Checker {
                             top-level property '\(propertyName)' cannot coexist with type '\(
                                 primaryType.last
                             )' in '\(
-                                self.filename
+                                self.file
                             )'
                             """
                         )
@@ -536,7 +535,7 @@ extension OTPF.Checker {
                 self.diagnose(
                     node: .init(self.tree),
                     message: """
-                    layout file '\(self.filename)' must define nested type '\(
+                    layout file '\(self.file)' must define nested type '\(
                         primaryType.last
                     )' inside 'extension \(
                         primaryType.scope!
@@ -548,12 +547,12 @@ extension OTPF.Checker {
             if  !primaryTypeFound,
                !matchingFreeFunction,
                !matchingTypealias,
-                self.filename != "main.swift" {
+                self.file != "main.swift" {
                 if  otherPrimaryTypeNames.isEmpty {
                     self.diagnose(
                         node: .init(self.tree),
                         message: """
-                        layout file '\(self.filename)' must define type '\(primaryType.last)'
+                        layout file '\(self.file)' must define type '\(primaryType.last)'
                         """
                     )
                 }
@@ -577,11 +576,14 @@ extension OTPF.Checker {
     ) {
         for member: MemberBlockItemSyntax in members.unrolled {
             if  let enumDeclaration: EnumDeclSyntax = member.decl.as(EnumDeclSyntax.self) {
-                let (keynum, simple): (Bool, Bool) = self.exemptKeynum(enumDeclaration)
-                if  keynum && simple {
+                let (keynum, simple): (keynum: Bool, simple: Bool) = Self.exemptKeynum(
+                    enumDeclaration
+                )
+                switch (keynum, simple) {
+                case (true, true):
                     continue
-                }
-                if  keynum && !simple {
+
+                case (true, false):
                     self.diagnose(
                         node: .init(enumDeclaration),
                         message: """
@@ -596,23 +598,25 @@ extension OTPF.Checker {
                         """
                     )
                     continue
+
+                case (false, _):
+                    self.diagnose(
+                        node: .init(enumDeclaration),
+                        message: """
+                        nested type '\(enumDeclaration.name.text)' must be defined in its own \
+                        file '\(
+                            parentType
+                        ).\(
+                            enumDeclaration.name.text
+                        ).swift'
+                        """
+                    )
+                    continue
                 }
-                self.diagnose(
-                    node: .init(enumDeclaration),
-                    message: """
-                    nested type '\(enumDeclaration.name.text)' must be defined in its own \
-                    file '\(
-                        parentType
-                    ).\(
-                        enumDeclaration.name.text
-                    ).swift'
-                    """
-                )
-                continue
             }
 
-            if  member.decl.primaryType {
-                let name: String = member.decl.primaryTypeName ?? "unnamed"
+            if  let nestedType: OTPF.PrimaryType = member.decl.primaryType {
+                let name: String = nestedType.last
                 self.diagnose(
                     node: .init(member.decl),
                     message: """
@@ -634,15 +638,14 @@ extension OTPF.Checker {
         self.diagnostics.append(diagnostic)
     }
 
-    private func exemptKeynum(_ enumDeclaration: EnumDeclSyntax) -> (
+    private static func exemptKeynum(_ enumDeclaration: EnumDeclSyntax) -> (
         keynum: Bool,
         simple: Bool
     ) {
         let name: String = enumDeclaration.name.text
         let keyName: Bool = name.hasSuffix("Key") || name.hasSuffix("Keys")
         let keyInheritance: Bool = enumDeclaration.inheritanceClause?.inheritedTypes.contains {
-            (inherited: InheritedTypeSyntax) in
-            let text: String = inherited.type.trimmedDescription
+            let text: String = "\($0.type.trimmed)"
             return text == "CodingKey" || text.hasSuffix(".CodingKey")
         } ?? false
 
@@ -651,15 +654,15 @@ extension OTPF.Checker {
         }
 
         let members: [MemberBlockItemSyntax] = enumDeclaration.memberBlock.members.unrolled
-        var casesPresent: Bool = false
+        var cases: Bool = false
         for member: MemberBlockItemSyntax in members {
             if  member.decl.is(EnumCaseDeclSyntax.self) {
-                casesPresent = true
+                cases = true
             } else {
                 return (keynum: true, simple: false)
             }
         }
-        return (keynum: true, simple: casesPresent)
+        return (keynum: true, simple: cases)
     }
 
     private func deprecationShim(
@@ -668,14 +671,14 @@ extension OTPF.Checker {
     ) -> Bool {
         for element: AttributeListSyntax.Element in alias.attributes {
             guard case .attribute(let attribute) = element,
-            attribute.attributeName.trimmedDescription == "available" else {
+            "\(attribute.attributeName.trimmed)" == "available" else {
                 continue
             }
-            let arguments: String = attribute.arguments?.trimmedDescription ?? ""
+            let arguments: String = attribute.arguments.map { "\($0.trimmed)" } ?? ""
             if  arguments.contains("deprecated") {
                 if  arguments.contains("renamed: \"\(expectedType)\"") ||
                     alias.initializer.value.canonicalTypeName == expectedType ||
-                    alias.initializer.value.trimmedDescription == expectedType {
+                    "\(alias.initializer.value.trimmed)" == expectedType {
                     return true
                 }
             }

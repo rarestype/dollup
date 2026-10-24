@@ -1,15 +1,7 @@
 import SwiftSyntax
 
 extension DeclSyntax {
-    var primaryType: Bool {
-        self.is(StructDeclSyntax.self) ||
-        self.is(ClassDeclSyntax.self) ||
-        self.is(EnumDeclSyntax.self) ||
-        self.is(ActorDeclSyntax.self) ||
-        self.is(ProtocolDeclSyntax.self)
-    }
-
-    var primaryTypeName: String? {
+    var primaryType: OTPF.PrimaryType? {
         let raw: String?
         if  let declaration: StructDeclSyntax = self.as(StructDeclSyntax.self) {
             raw = declaration.name.text
@@ -28,7 +20,7 @@ extension DeclSyntax {
         guard let raw else {
             return nil
         }
-        return OTPF.PrimaryType.init(raw).last
+        return OTPF.PrimaryType.init(raw)
     }
 
     var memberBlockItemList: MemberBlockItemListSyntax? {

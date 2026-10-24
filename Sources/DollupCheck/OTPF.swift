@@ -18,7 +18,7 @@ public enum OTPF {
         tree: SourceFileSyntax,
         in file: FilePath
     ) -> [Diagnostic] {
-        var checker: Checker = .init(tree: tree, file: file)
+        var checker: Checker = .init(tree: tree, path: file)
         return checker.check()
     }
 

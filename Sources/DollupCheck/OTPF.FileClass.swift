@@ -15,14 +15,17 @@ extension OTPF.FileClass {
             return nil
         }
 
-        let stem: String = .init(filename.dropLast(6))
+        let stemEnd: String.Index = filename.index(filename.endIndex, offsetBy: -6)
+        let stem: Substring = filename[..<stemEnd]
 
-        if  let special: Special = Special.init(rawValue: stem) {
+        if  let special: Special = Special.init(rawValue: String.init(stem)) {
             self = .special(special)
         } else if stem.hasSuffix(" (ext)") {
-            self = .ext(.init(String.init(stem.dropLast(6))))
+            let typeEnd: String.Index = stem.index(stem.endIndex, offsetBy: -6)
+            self = .ext(.init(stem[..<typeEnd]))
         } else if stem.hasSuffix(" (gen)") {
-            self = .gen(.init(String.init(stem.dropLast(6))))
+            let typeEnd: String.Index = stem.index(stem.endIndex, offsetBy: -6)
+            self = .gen(.init(stem[..<typeEnd]))
         } else {
             self = .layout(.init(stem))
         }
