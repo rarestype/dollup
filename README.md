@@ -83,6 +83,16 @@ swift run dollup [file-path]
 
 When a directory is provided, `dollup` will recursively format all `.swift` files within it.
 
+### Checking file organization
+
+To check that Swift files adhere to the One Type Per File (OTPF) file organization standard, run `dollup check`:
+
+```bash
+swift run dollup check [paths ...]
+```
+
+When a directory is provided, `dollup check` will recursively check all `.swift` files within it. It emits source-annotated diagnostics for any violations and exits with a non-zero exit code if violations are found, without modifying any files in place.
+
 
 ## Configuration
 

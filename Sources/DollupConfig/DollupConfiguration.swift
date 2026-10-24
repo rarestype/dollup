@@ -1,4 +1,5 @@
 import Dollup
+import DollupCheck
 import SystemIO
 
 public protocol DollupConfiguration {
@@ -67,6 +68,54 @@ extension DollupConfiguration {
             let formatted: String = try self.format(try file.read(), id: file) {
             try self.report(file: file)
             try file.overwrite(with: [UInt8].init(formatted.utf8)[...])
+        }
+    }
+}
+
+extension DollupConfiguration {
+    public static func check(in path: FilePath) throws -> [DollupCheck.Diagnostics] {
+        guard
+        let status: FileStatus = try path.status else {
+            throw """
+            path '\(path)' does not exist
+            """ as DollupError
+        }
+
+        if  status.is(.regular) {
+            if  let diagnostics: DollupCheck.Diagnostics = try self.check(on: path) {
+                return [diagnostics]
+            } else {
+                return []
+            }
+        }
+
+        guard status.is(.directory) else {
+            throw """
+            path '\(path)' is not a file or directory
+            """ as DollupError
+        }
+
+        var results: [DollupCheck.Diagnostics] = []
+        try path.directory.walk {
+            let path: FilePath = $0 / $1
+            if  case true? = try path.status?.is(.regular),
+                case "swift" = $1.extension {
+                if  let diagnostics: DollupCheck.Diagnostics = try self.check(on: path) {
+                    results.append(diagnostics)
+                }
+            }
+        } directory: { _, _ in
+            .descend
+        }
+        return results
+    }
+
+    public static func check(on file: FilePath) throws -> DollupCheck.Diagnostics? {
+        if  try self.filter(file: file) {
+            let source: String = try file.read()
+            return OTPF.diagnose(source: source, in: file)
+        } else {
+            return nil
         }
     }
 }

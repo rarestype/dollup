@@ -10,6 +10,7 @@ extension DollupCommand: ParsableCommand
             commandName: Configuration.name,
             subcommands: [
                 Format.self,
+                Check.self,
                 FormatAsPlugin.self,
                 Bundle.self,
                 Distribute.self,
