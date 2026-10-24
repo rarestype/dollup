@@ -38,7 +38,7 @@ jobs:
             -   name: 🎀 Install Swift 🎀
                 uses: rarestype/swift-install-action@v1
                 with:
-                    swift-release: 6.3.3-RELEASE
+                    swift-release: 6.4.1-RELEASE
 
             -   name: 🎀 Run tests 🎀
                 run: Scripts/TestAll
@@ -53,7 +53,7 @@ jobs:
                 if: always()
 
     macOS:
-        runs-on: macos-26
+        runs-on: xcode-27
         needs: changes
         if: needs.changes.outputs.code_changed == 'true'
         steps:
@@ -63,7 +63,7 @@ jobs:
             -   name: 🎀 Install Swift 🎀
                 uses: rarestype/swift-install-action@v1
                 with:
-                    swift-release: 6.3.3-RELEASE
+                    swift-release: 6.4.1-RELEASE
 
             -   name: 🎀 Run tests 🎀
                 run: Scripts/TestAll
