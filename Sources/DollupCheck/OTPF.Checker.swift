@@ -21,7 +21,7 @@ extension OTPF {
 
 extension OTPF.Checker {
     mutating func check() -> [Diagnostic] {
-        guard let fileClass: OTPF.FileClass = .init(filename: self.file) else {
+        guard let fileClass: OTPF.FileClass = .init(filename: self.file, in: self.path) else {
             return []
         }
 
@@ -66,12 +66,13 @@ extension OTPF.Checker {
 
         case .exports:
             for statement: CodeBlockItemSyntax in self.tree.statements.unrolled {
-                if  case .decl(let declaration) = statement.item,
-                    let importDeclaration: ImportDeclSyntax = declaration.as(
-                        ImportDeclSyntax.self
-                    ),
-                        importDeclaration.exported {
-                    continue
+                if  case .decl(let declaration) = statement.item {
+                    if  let importDeclaration: ImportDeclSyntax = declaration.as(
+                            ImportDeclSyntax.self
+                        ),
+                            importDeclaration.exported {
+                        continue
+                    }
                 }
                 self.diagnose(
                     node: .init(statement),
@@ -84,9 +85,9 @@ extension OTPF.Checker {
         case .lexemes:
             for statement: CodeBlockItemSyntax in self.tree.statements.unrolled {
                 if  case .decl(let declaration) = statement.item {
-                    if  declaration.is(OperatorDeclSyntax.self) || declaration.is(
-                            PrecedenceGroupDeclSyntax.self
-                        ) {
+                    if  declaration.is(ImportDeclSyntax.self) ||
+                        declaration.is(OperatorDeclSyntax.self) ||
+                        declaration.is(PrecedenceGroupDeclSyntax.self) {
                         continue
                     }
                 }
@@ -100,15 +101,19 @@ extension OTPF.Checker {
 
         case .operators:
             for statement: CodeBlockItemSyntax in self.tree.statements.unrolled {
-                if  case .decl(let declaration) = statement.item,
-                    case _? = declaration.primaryType {
-                    self.diagnose(
-                        node: .init(declaration),
-                        message: """
-                        'operators.swift' cannot declare types; it can only contain top-level \
-                        operator functions
-                        """
-                    )
+                if  case .decl(let declaration) = statement.item {
+                    if  declaration.is(ImportDeclSyntax.self) {
+                        continue
+                    }
+                    if  case _? = declaration.primaryType {
+                        self.diagnose(
+                            node: .init(declaration),
+                            message: """
+                            'operators.swift' cannot declare types; it can only contain top-level \
+                            operator functions
+                            """
+                        )
+                    }
                 }
             }
         }
@@ -177,7 +182,7 @@ extension OTPF.Checker {
                 }
                 self.checkExtensionMembers(
                     extensionDeclaration.memberBlock.members,
-                    parentType: expectedType.description
+                    parentType: target.description
                 )
                 continue
             }
@@ -217,12 +222,21 @@ extension OTPF.Checker {
                 )
                 continue
             }
+
+            self.diagnose(
+                node: .init(declaration),
+                message: """
+                extension file '\(self.file)' cannot contain top-level declarations other than \
+                extensions to '\(expectedType.description)'
+                """
+            )
         }
     }
 
     private mutating func checkLayout(_ primaryType: OTPF.PrimaryType) {
         let statements: [CodeBlockItemSyntax] = self.tree.statements.unrolled
         let matchingPrimaryDeclaration: DeclSyntax?
+        let definedPrimaryType: OTPF.PrimaryType?
         if !primaryType.nested {
             matchingPrimaryDeclaration = statements.compactMap {
                 guard case .decl(let declaration) = $0.item,
@@ -231,8 +245,16 @@ extension OTPF.Checker {
                 }
                 return declaration
             }.first
+
+            definedPrimaryType = matchingPrimaryDeclaration?.primaryType ?? statements.compactMap {
+                guard case .decl(let declaration) = $0.item else {
+                    return nil
+                }
+                return declaration.primaryType
+            }.first
         } else {
             matchingPrimaryDeclaration = nil
+            definedPrimaryType = nil
         }
 
         var foreignExtensionCount: Int = 0
@@ -264,10 +286,12 @@ extension OTPF.Checker {
                     ExtensionDeclSyntax.self
                 ) {
                 let target: OTPF.PrimaryType = extensionDeclaration.extendedType.primaryType
-                if  target == primaryType {
+                if  target == primaryType || (
+                        !primaryType.nested && target == definedPrimaryType
+                    ) {
                     self.checkExtensionMembers(
                         extensionDeclaration.memberBlock.members,
-                        parentType: primaryType.description
+                        parentType: target.description
                     )
                 } else if let scope: String = primaryType.scope,
                     target == OTPF.PrimaryType.init(scope) {
@@ -524,6 +548,15 @@ extension OTPF.Checker {
                         )
                     } else if propertyName == primaryType.last {
                         matchingFreeFunction = true
+                    } else {
+                        self.diagnose(
+                            node: .init(declaration),
+                            message: """
+                            top-level property '\(propertyName)' does not match filename '\(
+                                self.file
+                            )'
+                            """
+                        )
                     }
                 }
                 continue

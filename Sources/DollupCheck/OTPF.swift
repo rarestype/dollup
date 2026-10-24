@@ -38,6 +38,3 @@ public enum OTPF {
         return .init(file: file, message: annotated)
     }
 }
-
-@available(*, deprecated, renamed: "OTPF")
-public typealias OneTypePerFile = OTPF

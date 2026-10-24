@@ -560,4 +560,114 @@ import Testing
         #expect(formatted.contains("error: in 'Foo.swift':"))
         #expect(formatted.contains("one type per file violation"))
     }
+
+    @Test static func ExtensionFileNestedTypeSuggestion() {
+        let source: String = """
+        extension Foo {
+            struct Bar {}
+        }
+        """
+        let diagnostics: [Diagnostic] = OTPF.check(
+            source: source,
+            in: FilePath.init("Foo.Bar (ext).swift")
+        )
+        #expect(diagnostics.count == 2)
+        #expect(diagnostics.contains { $0.message.contains("Foo.Bar.swift") })
+        #expect(!diagnostics.contains { $0.message.contains("Foo.Bar.Bar.swift") })
+    }
+
+    @Test static func LayoutFileFreeFunctionWithStrayProperty() {
+        let source: String = """
+        func Partition(slice: inout [Int]) {}
+        let unrelated: Int = 13
+        """
+        let diagnostics: [Diagnostic] = OTPF.check(
+            source: source,
+            in: FilePath.init("Partition.swift")
+        )
+        #expect(diagnostics.count == 1)
+        #expect(
+            diagnostics.first?.message.contains(
+                "top-level property 'unrelated' does not match filename 'Partition.swift'"
+            ) == true
+        )
+    }
+
+    @Test static func ExtensionFileStrayDeclarations() {
+        let source: String = """
+        extension Foo {}
+        typealias Unrelated = Int
+        """
+        let diagnostics: [Diagnostic] = OTPF.check(
+            source: source,
+            in: FilePath.init("Foo (ext).swift")
+        )
+        #expect(diagnostics.count == 1)
+        #expect(
+            diagnostics.first?.message.contains(
+                "extension file 'Foo (ext).swift' cannot contain top-level declarations"
+            ) == true
+        )
+    }
+
+    @Test static func LexemesAndOperatorsWithImports() {
+        let source: String = """
+        import Fraction
+
+        infix operator <> : MultiplicationPrecedence
+        """
+        let diagnostics: [Diagnostic] = OTPF.check(
+            source: source,
+            in: FilePath.init("lexemes.swift")
+        )
+        #expect(diagnostics.isEmpty)
+    }
+
+    @Test static func PackageSwiftInTargetIsLayoutFile() {
+        let targetSource: String = """
+        struct Package {}
+        struct Other {}
+        """
+        let targetDiagnostics: [Diagnostic] = OTPF.check(
+            source: targetSource,
+            in: FilePath.init("Sources/X/Package.swift")
+        )
+        #expect(targetDiagnostics.count == 1)
+        #expect(
+            targetDiagnostics.first?.message.contains(
+                "one type per file violation: found type 'Other' in file 'Package.swift'"
+            ) == true
+        )
+
+        let rootSource: String = """
+        // manifest
+        """
+        let rootDiagnostics: [Diagnostic] = OTPF.check(
+            source: rootSource,
+            in: FilePath.init("Package.swift")
+        )
+        #expect(rootDiagnostics.isEmpty)
+    }
+
+    @Test static func LayoutFileMismatchExtensionNoise() {
+        let source: String = """
+        public struct Bar {}
+        extension Bar {
+            public func a() {}
+        }
+        extension Bar {
+            public func b() {}
+        }
+        """
+        let diagnostics: [Diagnostic] = OTPF.check(
+            source: source,
+            in: FilePath.init("Foo.swift")
+        )
+        #expect(diagnostics.count == 1)
+        #expect(
+            diagnostics.first?.message.contains(
+                "type 'Bar' does not match filename 'Foo.swift'"
+            ) == true
+        )
+    }
 }
