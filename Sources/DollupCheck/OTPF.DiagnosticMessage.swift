@@ -1,6 +1,6 @@
 import SwiftDiagnostics
 
-extension OneTypePerFile {
+extension OTPF {
     struct DiagnosticMessage {
         let message: String
         let diagnosticID: MessageID
@@ -8,9 +8,9 @@ extension OneTypePerFile {
 
         init(_ message: String, id: String = "OTPF", severity: DiagnosticSeverity = .error) {
             self.message = message
-            self.diagnosticID = .init(domain: "OneTypePerFile", id: id)
+            self.diagnosticID = .init(domain: "OTPF", id: id)
             self.severity = severity
         }
     }
 }
-extension OneTypePerFile.DiagnosticMessage: SwiftDiagnostics.DiagnosticMessage {}
+extension OTPF.DiagnosticMessage: SwiftDiagnostics.DiagnosticMessage {}

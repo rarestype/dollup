@@ -2,7 +2,7 @@ import SwiftDiagnostics
 import SwiftSyntax
 import SystemIO
 
-extension OneTypePerFile {
+extension OTPF {
     struct Checker {
         let file: FilePath
         let filename: String
@@ -17,7 +17,7 @@ extension OneTypePerFile {
         }
 
         mutating func check() -> [Diagnostic] {
-            guard self.filename.hasSuffix(".swift") else {
+            guard let fileClass: OTPF.FileClass = .init(filename: self.filename) else {
                 return []
             }
 
@@ -31,23 +31,36 @@ extension OneTypePerFile {
                 return self.diagnostics
             }
 
-            let stemWithGenOrExt: String = .init(self.filename.dropLast(6))
+            switch fileClass {
+            case .special(let special):
+                self.checkSpecial(special)
 
-            if  stemWithGenOrExt == "Package" {
-                return self.diagnostics
+            case .ext(let primaryType), .gen(let primaryType):
+                self.checkGlobalRestrictions()
+                self.checkExtension(expectedType: primaryType)
+
+            case .layout(let primaryType):
+                self.checkGlobalRestrictions()
+                self.checkLayout(primaryType)
             }
 
-            if  stemWithGenOrExt == "anchor" {
+            return self.diagnostics
+        }
+
+        private mutating func checkSpecial(_ special: OTPF.FileClass.Special) {
+            switch special {
+            case .package:
+                return
+
+            case .anchor:
                 if  !self.tree.statements.isEmpty {
                     self.diagnose(
                         node: .init(self.tree.statements.first!),
                         message: "'anchor.swift' must be empty"
                     )
                 }
-                return self.diagnostics
-            }
 
-            if  stemWithGenOrExt == "exports" {
+            case .exports:
                 let statements: [CodeBlockItemSyntax] = self.unrollStatements(
                     self.tree.statements
                 )
@@ -64,10 +77,8 @@ extension OneTypePerFile {
                         """
                     )
                 }
-                return self.diagnostics
-            }
 
-            if  stemWithGenOrExt == "lexemes" {
+            case .lexemes:
                 let statements: [CodeBlockItemSyntax] = self.unrollStatements(
                     self.tree.statements
                 )
@@ -86,10 +97,8 @@ extension OneTypePerFile {
                         """
                     )
                 }
-                return self.diagnostics
-            }
 
-            if  stemWithGenOrExt == "operators" {
+            case .operators:
                 let statements: [CodeBlockItemSyntax] = self.unrollStatements(
                     self.tree.statements
                 )
@@ -104,32 +113,10 @@ extension OneTypePerFile {
                         )
                     }
                 }
-                return self.diagnostics
             }
-
-            self.checkGlobalRestrictions(stemWithGenOrExt: stemWithGenOrExt)
-
-            let (extensionFile, generatedFile): (Bool, Bool) = (
-                stemWithGenOrExt.hasSuffix(" (ext)"),
-                stemWithGenOrExt.hasSuffix(" (gen)")
-            )
-            if  extensionFile || generatedFile {
-                let expectedType: String = .init(stemWithGenOrExt.dropLast(6))
-                self.checkExtensionFile(expectedType: expectedType)
-                return self.diagnostics
-            }
-
-            let stem: String = stemWithGenOrExt
-            if  stem.contains(".") {
-                self.checkNestedLayoutFile(stem: stem)
-            } else {
-                self.checkTopLevelLayoutFile(stem: stem)
-            }
-
-            return self.diagnostics
         }
 
-        private mutating func checkGlobalRestrictions(stemWithGenOrExt: String) {
+        private mutating func checkGlobalRestrictions() {
             let statements: [CodeBlockItemSyntax] = self.unrollStatements(self.tree.statements)
             for statement: CodeBlockItemSyntax in statements {
                 guard case .decl(let declaration) = statement.item else {
@@ -153,7 +140,7 @@ extension OneTypePerFile {
             }
         }
 
-        private mutating func checkExtensionFile(expectedType: String) {
+        private mutating func checkExtension(expectedType: PrimaryType) {
             let statements: [CodeBlockItemSyntax] = self.unrollStatements(self.tree.statements)
             for statement: CodeBlockItemSyntax in statements {
                 guard case .decl(let declaration) = statement.item else {
@@ -175,23 +162,23 @@ extension OneTypePerFile {
                 }
 
                 if  let extensionDecl: ExtensionDeclSyntax = declaration.as(ExtensionDeclSyntax.self) {
-                    let target: String = self.canonicalTypeName(of: extensionDecl.extendedType)
-                    let trimmed: String = extensionDecl.extendedType.trimmedDescription
+                    let target: PrimaryType = .init(self.canonicalTypeName(of: extensionDecl.extendedType))
+                    let trimmed: PrimaryType = .init(extensionDecl.extendedType.trimmedDescription)
                     if  target != expectedType && trimmed != expectedType {
                         self.diagnose(
                             node: .init(extensionDecl),
                             message: """
                             extension file '\(self.filename)' cannot contain extension to '\(
-                                trimmed
+                                extensionDecl.extendedType.trimmedDescription
                             )'; it must only extend '\(
-                                expectedType
+                                expectedType.description
                             )'
                             """
                         )
                     }
                     self.checkExtensionMembers(
                         extensionDecl.memberBlock.members,
-                        parentType: expectedType
+                        parentType: expectedType.description
                     )
                     continue
                 }
@@ -231,10 +218,18 @@ extension OneTypePerFile {
             }
         }
 
-        private mutating func checkNestedLayoutFile(stem: String) {
-            let components: [Substring] = stem.split(separator: ".")
-            let outerName: String = components.dropLast().joined(separator: ".")
-            let innerName: String = .init(components.last!)
+        private mutating func checkLayout(_ primaryType: PrimaryType) {
+            if  primaryType.isNested {
+                self.checkNestedLayout(primaryType)
+            } else {
+                self.checkTopLevelLayout(primaryType)
+            }
+        }
+
+        private mutating func checkNestedLayout(_ primaryType: PrimaryType) {
+            let scopeName: String = primaryType.scope!
+            let scopeType: PrimaryType = .init(scopeName)
+            let innerName: String = primaryType.last
 
             var foreignExtensionCount: Int = 0
             var primaryTypeFound: Bool = false
@@ -260,10 +255,10 @@ extension OneTypePerFile {
                 }
 
                 if  let extensionDecl: ExtensionDeclSyntax = declaration.as(ExtensionDeclSyntax.self) {
-                    let target: String = self.canonicalTypeName(of: extensionDecl.extendedType)
-                    let trimmed: String = extensionDecl.extendedType.trimmedDescription
+                    let target: PrimaryType = .init(self.canonicalTypeName(of: extensionDecl.extendedType))
+                    let trimmed: PrimaryType = .init(extensionDecl.extendedType.trimmedDescription)
 
-                    if  target == outerName || trimmed == outerName {
+                    if  target == scopeType || trimmed == scopeType {
                         foreignExtensionCount += 1
                         if  foreignExtensionCount > 1 {
                             self.diagnose(
@@ -272,7 +267,7 @@ extension OneTypePerFile {
                                 layout file '\(
                                     self.filename
                                 )' must contain only one extension to namespace '\(
-                                    outerName
+                                    scopeName
                                 )'
                                 """
                             )
@@ -285,12 +280,12 @@ extension OneTypePerFile {
                                 let name: String = self.name(of: member.decl) ?? ""
                                 if  name == innerName {
                                     primaryTypeFound = true
-                                    self.checkNestedMembers(member.decl, parentType: stem)
+                                    self.checkNestedMembers(member.decl, parentType: primaryType.description)
                                 } else {
                                     self.diagnose(
                                         node: .init(member.decl),
                                         message: """
-                                        foreign extension to '\(outerName)' in '\(
+                                        foreign extension to '\(scopeName)' in '\(
                                             self.filename
                                         )' must contain nothing except the definition of '\(
                                             innerName
@@ -307,7 +302,7 @@ extension OneTypePerFile {
                                     self.diagnose(
                                         node: .init(alias),
                                         message: """
-                                        foreign extension to '\(outerName)' in '\(
+                                        foreign extension to '\(scopeName)' in '\(
                                             self.filename
                                         )' must contain nothing except the definition of '\(
                                             innerName
@@ -319,7 +314,7 @@ extension OneTypePerFile {
                                 self.diagnose(
                                     node: .init(member.decl),
                                     message: """
-                                    foreign extension to '\(outerName)' in '\(
+                                    foreign extension to '\(scopeName)' in '\(
                                         self.filename
                                     )' must contain nothing except the definition of '\(
                                         innerName
@@ -328,8 +323,11 @@ extension OneTypePerFile {
                                 )
                             }
                         }
-                    } else if target == stem || trimmed == stem {
-                        self.checkExtensionMembers(extensionDecl.memberBlock.members, parentType: stem)
+                    } else if target == primaryType || trimmed == primaryType {
+                        self.checkExtensionMembers(
+                            extensionDecl.memberBlock.members,
+                            parentType: primaryType.description
+                        )
                     } else {
                         self.diagnose(
                             node: .init(extensionDecl),
@@ -337,7 +335,7 @@ extension OneTypePerFile {
                             layout file '\(
                                 self.filename
                             )' cannot contain extension to foreign type '\(
-                                trimmed
+                                extensionDecl.extendedType.trimmedDescription
                             )'
                             """
                         )
@@ -382,14 +380,15 @@ extension OneTypePerFile {
                     layout file '\(self.filename)' must define nested type '\(
                         innerName
                     )' inside 'extension \(
-                        outerName
+                        scopeName
                     )'
                     """
                 )
             }
         }
 
-        private mutating func checkTopLevelLayoutFile(stem: String) {
+        private mutating func checkTopLevelLayout(_ primaryType: PrimaryType) {
+            let stem: String = primaryType.last
             let statements: [CodeBlockItemSyntax] = self.unrollStatements(self.tree.statements)
             let matchingPrimaryDeclaration: DeclSyntax? = statements.compactMap { (statement: CodeBlockItemSyntax) -> DeclSyntax? in
                 guard case .decl(let declaration) = statement.item, self.primaryType(declaration) else {
@@ -423,10 +422,13 @@ extension OneTypePerFile {
                 }
 
                 if  let extensionDecl: ExtensionDeclSyntax = declaration.as(ExtensionDeclSyntax.self) {
-                    let target: String = self.canonicalTypeName(of: extensionDecl.extendedType)
-                    let trimmed: String = extensionDecl.extendedType.trimmedDescription
-                    if  target == stem || trimmed == stem {
-                        self.checkExtensionMembers(extensionDecl.memberBlock.members, parentType: stem)
+                    let target: PrimaryType = .init(self.canonicalTypeName(of: extensionDecl.extendedType))
+                    let trimmed: PrimaryType = .init(extensionDecl.extendedType.trimmedDescription)
+                    if  target == primaryType || trimmed == primaryType {
+                        self.checkExtensionMembers(
+                            extensionDecl.memberBlock.members,
+                            parentType: primaryType.description
+                        )
                     } else {
                         self.diagnose(
                             node: .init(extensionDecl),
@@ -434,7 +436,7 @@ extension OneTypePerFile {
                             layout file '\(
                                 self.filename
                             )' cannot contain extension to foreign type '\(
-                                trimmed
+                                extensionDecl.extendedType.trimmedDescription
                             )'
                             """
                         )
@@ -446,7 +448,7 @@ extension OneTypePerFile {
                     let name: String = self.name(of: declaration) ?? ""
                     if  name == stem {
                         primaryTypeFound = true
-                        self.checkNestedMembers(declaration, parentType: stem)
+                        self.checkNestedMembers(declaration, parentType: primaryType.description)
                     } else if case _? = matchingPrimaryDeclaration {
                         self.diagnose(
                             node: .init(declaration),
@@ -805,12 +807,16 @@ extension OneTypePerFile {
         }
 
         private func name(of declaration: DeclSyntax) -> String? {
-            if  let structDecl: StructDeclSyntax = declaration.as(StructDeclSyntax.self) { return structDecl.name.text }
-            if  let classDecl: ClassDeclSyntax = declaration.as(ClassDeclSyntax.self) { return classDecl.name.text }
-            if  let enumDecl: EnumDeclSyntax = declaration.as(EnumDeclSyntax.self) { return enumDecl.name.text }
-            if  let actorDecl: ActorDeclSyntax = declaration.as(ActorDeclSyntax.self) { return actorDecl.name.text }
-            if  let protocolDecl: ProtocolDeclSyntax = declaration.as(ProtocolDeclSyntax.self) { return protocolDecl.name.text }
-            return nil
+            let raw: String?
+            if  let structDecl: StructDeclSyntax = declaration.as(StructDeclSyntax.self) { raw = structDecl.name.text }
+            else if let classDecl: ClassDeclSyntax = declaration.as(ClassDeclSyntax.self) { raw = classDecl.name.text }
+            else if let enumDecl: EnumDeclSyntax = declaration.as(EnumDeclSyntax.self) { raw = enumDecl.name.text }
+            else if let actorDecl: ActorDeclSyntax = declaration.as(ActorDeclSyntax.self) { raw = actorDecl.name.text }
+            else if let protocolDecl: ProtocolDeclSyntax = declaration.as(ProtocolDeclSyntax.self) { raw = protocolDecl.name.text }
+            else { raw = nil }
+
+            guard let raw else { return nil }
+            return PrimaryType.init(raw).last
         }
     }
 }

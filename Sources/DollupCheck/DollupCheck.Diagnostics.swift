@@ -1,6 +1,6 @@
 import SystemPackage
 
-extension OneTypePerFile {
+extension DollupCheck {
     public struct Diagnostics: Sendable {
         public let file: FilePath
         public let message: String
@@ -11,7 +11,8 @@ extension OneTypePerFile {
         }
     }
 }
-extension OneTypePerFile.Diagnostics: CustomStringConvertible {
+
+extension DollupCheck.Diagnostics: CustomStringConvertible {
     public var description: String {
         """
         error: in '\(self.file)':

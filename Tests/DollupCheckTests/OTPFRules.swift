@@ -3,7 +3,98 @@ import SwiftDiagnostics
 import SystemIO
 import Testing
 
-@Suite struct OneTypePerFileRules {
+@Suite struct OTPFRules {
+    @Test static func PrimaryTypeParsing() {
+        let topLevel: OTPF.PrimaryType = "Foo"
+        #expect(topLevel.scope == nil)
+        #expect(topLevel.last == "Foo")
+        #expect(!topLevel.isNested)
+        #expect(!topLevel.encased)
+        #expect(topLevel.unencased == "Foo")
+        #expect(topLevel.description == "Foo")
+
+        let nested: OTPF.PrimaryType = "Outer.Inner"
+        #expect(nested.scope == "Outer")
+        #expect(nested.last == "Inner")
+        #expect(nested.isNested)
+        #expect(!nested.encased)
+        #expect(nested.unencased == "Outer.Inner")
+        #expect(nested.description == "Outer.Inner")
+
+        let deep: OTPF.PrimaryType = "A.B.C"
+        #expect(deep.scope == "A.B")
+        #expect(deep.last == "C")
+        #expect(deep.isNested)
+        #expect(!deep.encased)
+        #expect(deep.unencased == "A.B.C")
+
+        let keyword: OTPF.PrimaryType = "`default`"
+        #expect(keyword.scope == nil)
+        #expect(keyword.last == "default")
+        #expect(keyword.encased)
+        #expect(keyword.unencased == "default")
+        #expect(keyword.description == "`default`")
+        #expect(keyword == "default")
+
+        let nestedKeyword: OTPF.PrimaryType = "Outer.`default`"
+        #expect(nestedKeyword.scope == "Outer")
+        #expect(nestedKeyword.last == "default")
+        #expect(nestedKeyword.encased)
+        #expect(nestedKeyword.unencased == "Outer.default")
+        #expect(nestedKeyword.description == "Outer.`default`")
+        #expect(nestedKeyword == "Outer.default")
+    }
+
+    @Test static func FileClassClassification() {
+        #expect(OTPF.FileClass(filename: "Package.swift") == .special(.package))
+        #expect(OTPF.FileClass(filename: "anchor.swift") == .special(.anchor))
+        #expect(OTPF.FileClass(filename: "exports.swift") == .special(.exports))
+        #expect(OTPF.FileClass(filename: "lexemes.swift") == .special(.lexemes))
+        #expect(OTPF.FileClass(filename: "operators.swift") == .special(.operators))
+
+        #expect(OTPF.FileClass(filename: "Foo (ext).swift") == .ext("Foo"))
+        #expect(OTPF.FileClass(filename: "Outer.Inner (ext).swift") == .ext("Outer.Inner"))
+        #expect(OTPF.FileClass(filename: "Foo (gen).swift") == .gen("Foo"))
+
+        #expect(OTPF.FileClass(filename: "Foo.swift") == .layout("Foo"))
+        #expect(OTPF.FileClass(filename: "Outer.Inner.swift") == .layout("Outer.Inner"))
+        #expect(OTPF.FileClass(filename: "README.md") == nil)
+    }
+
+    @Test static func LayoutFileWithBacktickKeyword() {
+        let source: String = """
+        public struct `default` {
+            public var value: Int
+        }
+        extension `default` {
+            public func helper() {}
+        }
+        """
+        let diagnostics: [Diagnostic] = OTPF.check(
+            source: source,
+            in: FilePath.init("default.swift")
+        )
+        #expect(diagnostics.isEmpty)
+    }
+
+    @Test static func NestedLayoutFileWithBacktickKeyword() {
+        let source: String = """
+        extension Outer {
+            public struct `default` {
+                public var value: Int
+            }
+        }
+        extension Outer.`default` {
+            public func helper() {}
+        }
+        """
+        let diagnostics: [Diagnostic] = OTPF.check(
+            source: source,
+            in: FilePath.init("Outer.default.swift")
+        )
+        #expect(diagnostics.isEmpty)
+    }
+
     @Test static func LayoutFileValid() {
         let source: String = """
         public struct Foo {
@@ -13,7 +104,7 @@ import Testing
             public func bar() {}
         }
         """
-        let diagnostics: [Diagnostic] = OneTypePerFile.check(
+        let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
             in: FilePath.init("Foo.swift")
         )
@@ -24,7 +115,7 @@ import Testing
         let source: String = """
         public struct Bar {}
         """
-        let diagnostics: [Diagnostic] = OneTypePerFile.check(
+        let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
             in: FilePath.init("Foo.swift")
         )
@@ -37,7 +128,7 @@ import Testing
         public struct Foo {}
         public struct Bar {}
         """
-        let diagnostics: [Diagnostic] = OneTypePerFile.check(
+        let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
             in: FilePath.init("Foo.swift")
         )
@@ -55,7 +146,7 @@ import Testing
             public struct Nested {}
         }
         """
-        let diagnostics: [Diagnostic] = OneTypePerFile.check(
+        let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
             in: FilePath.init("Foo.swift")
         )
@@ -74,7 +165,7 @@ import Testing
             public func helper() {}
         }
         """
-        let diagnostics: [Diagnostic] = OneTypePerFile.check(
+        let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
             in: FilePath.init("Foo.swift")
         )
@@ -95,7 +186,7 @@ import Testing
             }
         }
         """
-        let diagnostics: [Diagnostic] = OneTypePerFile.check(
+        let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
             in: FilePath.init("Foo.swift")
         )
@@ -112,7 +203,7 @@ import Testing
             }
         }
         """
-        let diagnostics: [Diagnostic] = OneTypePerFile.check(
+        let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
             in: FilePath.init("Foo.swift")
         )
@@ -131,7 +222,7 @@ import Testing
         @available(*, deprecated, renamed: "Foo")
         public typealias OldFoo = Foo
         """
-        let diagnostics: [Diagnostic] = OneTypePerFile.check(
+        let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
             in: FilePath.init("Foo.swift")
         )
@@ -143,7 +234,7 @@ import Testing
         public func Partition(slice: inout [Int]) {}
         public func Partition(slice: inout [String]) {}
         """
-        let diagnostics: [Diagnostic] = OneTypePerFile.check(
+        let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
             in: FilePath.init("Partition.swift")
         )
@@ -155,7 +246,7 @@ import Testing
         public struct Foo {}
         public func Foo() {}
         """
-        let diagnostics: [Diagnostic] = OneTypePerFile.check(
+        let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
             in: FilePath.init("Foo.swift")
         )
@@ -178,7 +269,7 @@ import Testing
             public func doSomething() {}
         }
         """
-        let diagnostics: [Diagnostic] = OneTypePerFile.check(
+        let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
             in: FilePath.init("Foo.Bar.swift")
         )
@@ -192,7 +283,7 @@ import Testing
             public func sibling() {}
         }
         """
-        let diagnostics: [Diagnostic] = OneTypePerFile.check(
+        let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
             in: FilePath.init("Foo.Bar.swift")
         )
@@ -210,7 +301,7 @@ import Testing
         let source: String = """
         public struct Bar {}
         """
-        let diagnostics: [Diagnostic] = OneTypePerFile.check(
+        let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
             in: FilePath.init("Foo.Bar.swift")
         )
@@ -227,7 +318,7 @@ import Testing
             public func extra() {}
         }
         """
-        let diagnostics: [Diagnostic] = OneTypePerFile.check(
+        let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
             in: FilePath.init("Foo (ext).swift")
         )
@@ -243,7 +334,7 @@ import Testing
             public func joinedNames() -> String { "" }
         }
         """
-        let arrayDiagnostics: [Diagnostic] = OneTypePerFile.check(
+        let arrayDiagnostics: [Diagnostic] = OTPF.check(
             source: arraySource,
             in: FilePath.init("Array (ext).swift")
         )
@@ -254,7 +345,7 @@ import Testing
             public func lookup() {}
         }
         """
-        let dictDiagnostics: [Diagnostic] = OneTypePerFile.check(
+        let dictDiagnostics: [Diagnostic] = OTPF.check(
             source: dictSource,
             in: FilePath.init("Dictionary (ext).swift")
         )
@@ -270,7 +361,7 @@ import Testing
             public func b() {}
         }
         """
-        let diagnostics: [Diagnostic] = OneTypePerFile.check(
+        let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
             in: FilePath.init("Foo (ext).swift")
         )
@@ -282,7 +373,7 @@ import Testing
         let source: String = """
         public struct Foo {}
         """
-        let diagnostics: [Diagnostic] = OneTypePerFile.check(
+        let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
             in: FilePath.init("Foo (ext).swift")
         )
@@ -296,7 +387,7 @@ import Testing
             public typealias Witness = Int
         }
         """
-        let diagnostics: [Diagnostic] = OneTypePerFile.check(
+        let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
             in: FilePath.init("Foo (ext).swift")
         )
@@ -309,7 +400,7 @@ import Testing
             public func bar() {}
         }
         """
-        let diagnostics: [Diagnostic] = OneTypePerFile.check(
+        let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
             in: FilePath.init("Foo+Bar.swift")
         )
@@ -322,13 +413,13 @@ import Testing
     }
 
     @Test static func AnchorSwift() {
-        let emptyDiagnostics: [Diagnostic] = OneTypePerFile.check(
+        let emptyDiagnostics: [Diagnostic] = OTPF.check(
             source: "",
             in: FilePath.init("anchor.swift")
         )
         #expect(emptyDiagnostics.isEmpty)
 
-        let nonEmptyDiagnostics: [Diagnostic] = OneTypePerFile.check(
+        let nonEmptyDiagnostics: [Diagnostic] = OTPF.check(
             source: "import Foundation",
             in: FilePath.init("anchor.swift")
         )
@@ -341,7 +432,7 @@ import Testing
         @_exported import SystemIO
         @_exported import SwiftSyntax
         """
-        let validDiagnostics: [Diagnostic] = OneTypePerFile.check(
+        let validDiagnostics: [Diagnostic] = OTPF.check(
             source: validSource,
             in: FilePath.init("exports.swift")
         )
@@ -350,7 +441,7 @@ import Testing
         let invalidSource: String = """
         import SystemIO
         """
-        let invalidDiagnostics: [Diagnostic] = OneTypePerFile.check(
+        let invalidDiagnostics: [Diagnostic] = OTPF.check(
             source: invalidSource,
             in: FilePath.init("exports.swift")
         )
@@ -365,7 +456,7 @@ import Testing
         @_exported import SystemIO
         public struct Foo {}
         """
-        let misplacedDiagnostics: [Diagnostic] = OneTypePerFile.check(
+        let misplacedDiagnostics: [Diagnostic] = OTPF.check(
             source: misplacedExport,
             in: FilePath.init("Foo.swift")
         )
@@ -384,7 +475,7 @@ import Testing
             higherThan: MultiplicationPrecedence
         }
         """
-        let lexemesDiagnostics: [Diagnostic] = OneTypePerFile.check(
+        let lexemesDiagnostics: [Diagnostic] = OTPF.check(
             source: lexemesSource,
             in: FilePath.init("lexemes.swift")
         )
@@ -394,7 +485,7 @@ import Testing
         infix operator >< : MultiplicationPrecedence
         public struct Foo {}
         """
-        let misplacedDiagnostics: [Diagnostic] = OneTypePerFile.check(
+        let misplacedDiagnostics: [Diagnostic] = OTPF.check(
             source: misplacedOperator,
             in: FilePath.init("Foo.swift")
         )
@@ -411,7 +502,7 @@ import Testing
         let operatorsSource: String = """
         public func + (a: Foo, b: Foo) -> Foo { a }
         """
-        let operatorsDiagnostics: [Diagnostic] = OneTypePerFile.check(
+        let operatorsDiagnostics: [Diagnostic] = OTPF.check(
             source: operatorsSource,
             in: FilePath.init("operators.swift")
         )
@@ -420,7 +511,7 @@ import Testing
         let operatorsWithTypes: String = """
         public struct Foo {}
         """
-        let operatorsTypeDiagnostics: [Diagnostic] = OneTypePerFile.check(
+        let operatorsTypeDiagnostics: [Diagnostic] = OTPF.check(
             source: operatorsWithTypes,
             in: FilePath.init("operators.swift")
         )
@@ -442,7 +533,7 @@ import Testing
             #endif
         }
         """
-        let diagnostics: [Diagnostic] = OneTypePerFile.check(
+        let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
             in: FilePath.init("Foo.swift")
         )
@@ -456,7 +547,7 @@ import Testing
         public struct Foo {}
         public struct Bar {}
         """
-        let diagnostics: OneTypePerFile.Diagnostics? = OneTypePerFile.diagnose(
+        let diagnostics: OTPF.Diagnostics? = OTPF.diagnose(
             source: source,
             in: FilePath.init("Foo.swift")
         )

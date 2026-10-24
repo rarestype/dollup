@@ -3,7 +3,9 @@ import SwiftParser
 import SwiftSyntax
 import SystemIO
 
-public enum OneTypePerFile {
+public enum OTPF {
+    public typealias Diagnostics = DollupCheck.Diagnostics
+
     public static func check(
         source: String,
         in file: FilePath
@@ -36,3 +38,6 @@ public enum OneTypePerFile {
         return .init(file: file, message: annotated)
     }
 }
+
+@available(*, deprecated, renamed: "OTPF")
+public typealias OneTypePerFile = OTPF
