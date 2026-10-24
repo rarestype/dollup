@@ -43,6 +43,20 @@ import Testing
         #expect(nestedKeyword.unencased == "Outer.default")
         #expect(nestedKeyword.description == "Outer.`default`")
         #expect(nestedKeyword == "Outer.default")
+
+        let encasedScope: OTPF.PrimaryType = "`Outer`.Inner"
+        #expect(encasedScope.scope == "Outer")
+        #expect(encasedScope.last == "Inner")
+        #expect(!encasedScope.encased)
+        #expect(encasedScope.unencased == "Outer.Inner")
+        #expect(encasedScope.description == "Outer.Inner")
+
+        let deepEncasedScope: OTPF.PrimaryType = "`A`.`B`.`C`"
+        #expect(deepEncasedScope.scope == "A.B")
+        #expect(deepEncasedScope.last == "C")
+        #expect(deepEncasedScope.encased)
+        #expect(deepEncasedScope.unencased == "A.B.C")
+        #expect(deepEncasedScope.description == "A.B.`C`")
     }
 
     @Test static func FileClassClassification() {

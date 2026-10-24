@@ -57,10 +57,14 @@ extension OTPF.PrimaryType {
         let rawScope: Substring = raw[..<dot]
         let rawLast: Substring = raw[raw.index(after: dot)...]
 
-        let scope: String = rawScope
-            .split(separator: ".")
-            .map { Self.unencase($0).unencased }
-            .joined(separator: ".")
+        var scope: String = ""
+        var remainder: Substring = rawScope
+        while let dotIndex: Substring.Index = remainder.firstIndex(of: ".") {
+            scope.append(Self.unencase(remainder[..<dotIndex]).unencased)
+            scope.append(".")
+            remainder = remainder[remainder.index(after: dotIndex)...]
+        }
+        scope.append(Self.unencase(remainder).unencased)
 
         let (last, encased): (String, Bool) = Self.unencase(rawLast)
         return (scope, last, encased)

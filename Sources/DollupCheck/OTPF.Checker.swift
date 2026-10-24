@@ -497,7 +497,7 @@ extension OTPF.Checker {
             if  let typealiasDeclaration: TypeAliasDeclSyntax = declaration.as(
                     TypeAliasDeclSyntax.self
                 ) {
-                if  Self.deprecationShim(typealiasDeclaration, for: primaryType.last) {
+                if  typealiasDeclaration.deprecationShim(for: primaryType.last) {
                     continue
                 }
                 if  case _? = matchingPrimaryDeclaration {
@@ -696,26 +696,5 @@ extension OTPF.Checker {
             }
         }
         return (keynum: true, simple: cases)
-    }
-
-    private static func deprecationShim(
-        _ alias: TypeAliasDeclSyntax,
-        for expectedType: String
-    ) -> Bool {
-        for element: AttributeListSyntax.Element in alias.attributes {
-            guard case .attribute(let attribute) = element,
-            "\(attribute.attributeName.trimmed)" == "available" else {
-                continue
-            }
-            let arguments: String = attribute.arguments.map { "\($0.trimmed)" } ?? ""
-            if  arguments.contains("deprecated") {
-                if  arguments.contains("renamed: \"\(expectedType)\"") ||
-                    alias.initializer.value.canonicalTypeName == expectedType ||
-                    "\(alias.initializer.value.trimmed)" == expectedType {
-                    return true
-                }
-            }
-        }
-        return false
     }
 }
