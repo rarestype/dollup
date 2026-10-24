@@ -1,5 +1,5 @@
 extension OTPF.FileClass {
-    public enum Special: String, Hashable {
+    public enum Special: String {
         case anchor
         case exports
         case lexemes
@@ -7,3 +7,5 @@ extension OTPF.FileClass {
         case Package
     }
 }
+
+extension OTPF.FileClass.Special: Hashable {}

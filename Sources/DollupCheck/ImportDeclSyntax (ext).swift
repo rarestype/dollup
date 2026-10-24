@@ -1,9 +1,9 @@
 import SwiftSyntax
 
 extension ImportDeclSyntax {
-    var isExported: Bool {
-        for attributeElement: AttributeListSyntax.Element in self.attributes {
-            if  case .attribute(let attribute) = attributeElement,
+    var exported: Bool {
+        for element: AttributeListSyntax.Element in self.attributes {
+            if  case .attribute(let attribute) = element,
                 attribute.attributeName.trimmedDescription == "_exported" {
                 return true
             }

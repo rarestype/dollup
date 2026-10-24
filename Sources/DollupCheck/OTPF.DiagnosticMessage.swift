@@ -13,4 +13,5 @@ extension OTPF {
         }
     }
 }
+
 extension OTPF.DiagnosticMessage: SwiftDiagnostics.DiagnosticMessage {}

@@ -8,7 +8,7 @@ import Testing
         let topLevel: OTPF.PrimaryType = "Foo"
         #expect(topLevel.scope == nil)
         #expect(topLevel.last == "Foo")
-        #expect(!topLevel.isNested)
+        #expect(!topLevel.nested)
         #expect(!topLevel.encased)
         #expect(topLevel.unencased == "Foo")
         #expect(topLevel.description == "Foo")
@@ -16,7 +16,7 @@ import Testing
         let nested: OTPF.PrimaryType = "Outer.Inner"
         #expect(nested.scope == "Outer")
         #expect(nested.last == "Inner")
-        #expect(nested.isNested)
+        #expect(nested.nested)
         #expect(!nested.encased)
         #expect(nested.unencased == "Outer.Inner")
         #expect(nested.description == "Outer.Inner")
@@ -24,7 +24,7 @@ import Testing
         let deep: OTPF.PrimaryType = "A.B.C"
         #expect(deep.scope == "A.B")
         #expect(deep.last == "C")
-        #expect(deep.isNested)
+        #expect(deep.nested)
         #expect(!deep.encased)
         #expect(deep.unencased == "A.B.C")
 
@@ -46,19 +46,19 @@ import Testing
     }
 
     @Test static func FileClassClassification() {
-        #expect(OTPF.FileClass(filename: "Package.swift") == .special(.Package))
-        #expect(OTPF.FileClass(filename: "anchor.swift") == .special(.anchor))
-        #expect(OTPF.FileClass(filename: "exports.swift") == .special(.exports))
-        #expect(OTPF.FileClass(filename: "lexemes.swift") == .special(.lexemes))
-        #expect(OTPF.FileClass(filename: "operators.swift") == .special(.operators))
+        #expect(OTPF.FileClass.init(filename: "Package.swift") == .special(.Package))
+        #expect(OTPF.FileClass.init(filename: "anchor.swift") == .special(.anchor))
+        #expect(OTPF.FileClass.init(filename: "exports.swift") == .special(.exports))
+        #expect(OTPF.FileClass.init(filename: "lexemes.swift") == .special(.lexemes))
+        #expect(OTPF.FileClass.init(filename: "operators.swift") == .special(.operators))
 
-        #expect(OTPF.FileClass(filename: "Foo (ext).swift") == .ext("Foo"))
-        #expect(OTPF.FileClass(filename: "Outer.Inner (ext).swift") == .ext("Outer.Inner"))
-        #expect(OTPF.FileClass(filename: "Foo (gen).swift") == .gen("Foo"))
+        #expect(OTPF.FileClass.init(filename: "Foo (ext).swift") == .ext("Foo"))
+        #expect(OTPF.FileClass.init(filename: "Outer.Inner (ext).swift") == .ext("Outer.Inner"))
+        #expect(OTPF.FileClass.init(filename: "Foo (gen).swift") == .gen("Foo"))
 
-        #expect(OTPF.FileClass(filename: "Foo.swift") == .layout("Foo"))
-        #expect(OTPF.FileClass(filename: "Outer.Inner.swift") == .layout("Outer.Inner"))
-        #expect(OTPF.FileClass(filename: "README.md") == nil)
+        #expect(OTPF.FileClass.init(filename: "Foo.swift") == .layout("Foo"))
+        #expect(OTPF.FileClass.init(filename: "Outer.Inner.swift") == .layout("Outer.Inner"))
+        #expect(OTPF.FileClass.init(filename: "README.md") == nil)
     }
 
     @Test static func LayoutFileWithBacktickKeyword() {
@@ -366,7 +366,9 @@ import Testing
             in: FilePath.init("Foo (ext).swift")
         )
         #expect(diagnostics.count == 1)
-        #expect(diagnostics.first?.message.contains("cannot contain extension to 'Bar'") == true)
+        #expect(
+            diagnostics.first?.message.contains("cannot contain extension to 'Bar'") == true
+        )
     }
 
     @Test static func ExtensionFilePrimaryTypeViolation() {
@@ -424,7 +426,9 @@ import Testing
             in: FilePath.init("anchor.swift")
         )
         #expect(nonEmptyDiagnostics.count == 1)
-        #expect(nonEmptyDiagnostics.first?.message.contains("'anchor.swift' must be empty") == true)
+        #expect(
+            nonEmptyDiagnostics.first?.message.contains("'anchor.swift' must be empty") == true
+        )
     }
 
     @Test static func ExportsSwift() {

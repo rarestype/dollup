@@ -1,7 +1,7 @@
 import SwiftSyntax
 
 extension DeclSyntax {
-    var isPrimaryType: Bool {
+    var primaryType: Bool {
         self.is(StructDeclSyntax.self) ||
         self.is(ClassDeclSyntax.self) ||
         self.is(EnumDeclSyntax.self) ||
@@ -11,16 +11,16 @@ extension DeclSyntax {
 
     var primaryTypeName: String? {
         let raw: String?
-        if  let structDecl: StructDeclSyntax = self.as(StructDeclSyntax.self) {
-            raw = structDecl.name.text
-        } else if let classDecl: ClassDeclSyntax = self.as(ClassDeclSyntax.self) {
-            raw = classDecl.name.text
-        } else if let enumDecl: EnumDeclSyntax = self.as(EnumDeclSyntax.self) {
-            raw = enumDecl.name.text
-        } else if let actorDecl: ActorDeclSyntax = self.as(ActorDeclSyntax.self) {
-            raw = actorDecl.name.text
-        } else if let protocolDecl: ProtocolDeclSyntax = self.as(ProtocolDeclSyntax.self) {
-            raw = protocolDecl.name.text
+        if  let declaration: StructDeclSyntax = self.as(StructDeclSyntax.self) {
+            raw = declaration.name.text
+        } else if let declaration: ClassDeclSyntax = self.as(ClassDeclSyntax.self) {
+            raw = declaration.name.text
+        } else if let declaration: EnumDeclSyntax = self.as(EnumDeclSyntax.self) {
+            raw = declaration.name.text
+        } else if let declaration: ActorDeclSyntax = self.as(ActorDeclSyntax.self) {
+            raw = declaration.name.text
+        } else if let declaration: ProtocolDeclSyntax = self.as(ProtocolDeclSyntax.self) {
+            raw = declaration.name.text
         } else {
             raw = nil
         }
@@ -28,20 +28,20 @@ extension DeclSyntax {
         guard let raw else {
             return nil
         }
-        return OTPF.PrimaryType(raw).last
+        return OTPF.PrimaryType.init(raw).last
     }
 
     var memberBlockItemList: MemberBlockItemListSyntax? {
-        if  let structDecl: StructDeclSyntax = self.as(StructDeclSyntax.self) {
-            return structDecl.memberBlock.members
-        } else if let classDecl: ClassDeclSyntax = self.as(ClassDeclSyntax.self) {
-            return classDecl.memberBlock.members
-        } else if let enumDecl: EnumDeclSyntax = self.as(EnumDeclSyntax.self) {
-            return enumDecl.memberBlock.members
-        } else if let actorDecl: ActorDeclSyntax = self.as(ActorDeclSyntax.self) {
-            return actorDecl.memberBlock.members
-        } else if let protocolDecl: ProtocolDeclSyntax = self.as(ProtocolDeclSyntax.self) {
-            return protocolDecl.memberBlock.members
+        if  let declaration: StructDeclSyntax = self.as(StructDeclSyntax.self) {
+            return declaration.memberBlock.members
+        } else if let declaration: ClassDeclSyntax = self.as(ClassDeclSyntax.self) {
+            return declaration.memberBlock.members
+        } else if let declaration: EnumDeclSyntax = self.as(EnumDeclSyntax.self) {
+            return declaration.memberBlock.members
+        } else if let declaration: ActorDeclSyntax = self.as(ActorDeclSyntax.self) {
+            return declaration.memberBlock.members
+        } else if let declaration: ProtocolDeclSyntax = self.as(ProtocolDeclSyntax.self) {
+            return declaration.memberBlock.members
         } else {
             return nil
         }
