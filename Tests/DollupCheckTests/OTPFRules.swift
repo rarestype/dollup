@@ -46,7 +46,7 @@ import Testing
     }
 
     @Test static func FileClassClassification() {
-        #expect(OTPF.FileClass(filename: "Package.swift") == .special(.package))
+        #expect(OTPF.FileClass(filename: "Package.swift") == .special(.Package))
         #expect(OTPF.FileClass(filename: "anchor.swift") == .special(.anchor))
         #expect(OTPF.FileClass(filename: "exports.swift") == .special(.exports))
         #expect(OTPF.FileClass(filename: "lexemes.swift") == .special(.lexemes))

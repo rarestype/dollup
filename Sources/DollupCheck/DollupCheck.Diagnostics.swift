@@ -1,7 +1,7 @@
 import SystemPackage
 
 extension DollupCheck {
-    public struct Diagnostics: Sendable {
+    public struct Diagnostics {
         public let file: FilePath
         public let message: String
 

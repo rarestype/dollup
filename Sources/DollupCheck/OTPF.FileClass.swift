@@ -1,5 +1,5 @@
 extension OTPF {
-    public enum FileClass: Hashable, Sendable {
+    public enum FileClass: Hashable {
         case special(Special)
         case ext(PrimaryType)
         case gen(PrimaryType)

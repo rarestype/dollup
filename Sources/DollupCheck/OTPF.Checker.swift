@@ -49,7 +49,7 @@ extension OTPF {
 
         private mutating func checkSpecial(_ special: OTPF.FileClass.Special) {
             switch special {
-            case .package:
+            case .Package:
                 return
 
             case .anchor:
@@ -61,13 +61,10 @@ extension OTPF {
                 }
 
             case .exports:
-                let statements: [CodeBlockItemSyntax] = self.unrollStatements(
-                    self.tree.statements
-                )
-                for statement: CodeBlockItemSyntax in statements {
+                for statement: CodeBlockItemSyntax in self.tree.statements.unrolled {
                     if  case .decl(let declaration) = statement.item,
                         let importDecl: ImportDeclSyntax = declaration.as(ImportDeclSyntax.self),
-                        self.exportedImport(importDecl) {
+                        importDecl.isExported {
                         continue
                     }
                     self.diagnose(
@@ -79,10 +76,7 @@ extension OTPF {
                 }
 
             case .lexemes:
-                let statements: [CodeBlockItemSyntax] = self.unrollStatements(
-                    self.tree.statements
-                )
-                for statement: CodeBlockItemSyntax in statements {
+                for statement: CodeBlockItemSyntax in self.tree.statements.unrolled {
                     if  case .decl(let declaration) = statement.item {
                         if  declaration.is(OperatorDeclSyntax.self) || declaration.is(
                                 PrecedenceGroupDeclSyntax.self
@@ -99,12 +93,8 @@ extension OTPF {
                 }
 
             case .operators:
-                let statements: [CodeBlockItemSyntax] = self.unrollStatements(
-                    self.tree.statements
-                )
-                for statement: CodeBlockItemSyntax in statements {
-                    if  case .decl(let declaration) = statement.item,
-                        self.primaryType(declaration) {
+                for statement: CodeBlockItemSyntax in self.tree.statements.unrolled {
+                    if  case .decl(let declaration) = statement.item, declaration.isPrimaryType {
                         self.diagnose(
                             node: .init(declaration),
                             message: """
@@ -117,13 +107,12 @@ extension OTPF {
         }
 
         private mutating func checkGlobalRestrictions() {
-            let statements: [CodeBlockItemSyntax] = self.unrollStatements(self.tree.statements)
-            for statement: CodeBlockItemSyntax in statements {
+            for statement: CodeBlockItemSyntax in self.tree.statements.unrolled {
                 guard case .decl(let declaration) = statement.item else {
                     continue
                 }
                 if  let importDecl: ImportDeclSyntax = declaration.as(ImportDeclSyntax.self),
-                    self.exportedImport(importDecl) {
+                    importDecl.isExported {
                     self.diagnose(
                         node: .init(importDecl),
                         message: "'@_exported import' is prohibited outside 'exports.swift'"
@@ -141,8 +130,7 @@ extension OTPF {
         }
 
         private mutating func checkExtension(expectedType: PrimaryType) {
-            let statements: [CodeBlockItemSyntax] = self.unrollStatements(self.tree.statements)
-            for statement: CodeBlockItemSyntax in statements {
+            for statement: CodeBlockItemSyntax in self.tree.statements.unrolled {
                 guard case .decl(let declaration) = statement.item else {
                     if  !statement.item.is(ImportDeclSyntax.self) {
                         self.diagnose(
@@ -162,9 +150,8 @@ extension OTPF {
                 }
 
                 if  let extensionDecl: ExtensionDeclSyntax = declaration.as(ExtensionDeclSyntax.self) {
-                    let target: PrimaryType = .init(self.canonicalTypeName(of: extensionDecl.extendedType))
-                    let trimmed: PrimaryType = .init(extensionDecl.extendedType.trimmedDescription)
-                    if  target != expectedType && trimmed != expectedType {
+                    let target: PrimaryType = extensionDecl.extendedType.primaryType
+                    if  target != expectedType {
                         self.diagnose(
                             node: .init(extensionDecl),
                             message: """
@@ -183,8 +170,8 @@ extension OTPF {
                     continue
                 }
 
-                if  self.primaryType(declaration) {
-                    let name: String = self.name(of: declaration) ?? "unnamed"
+                if  declaration.isPrimaryType {
+                    let name: String = declaration.primaryTypeName ?? "unnamed"
                     self.diagnose(
                         node: .init(declaration),
                         message: """
@@ -219,25 +206,30 @@ extension OTPF {
         }
 
         private mutating func checkLayout(_ primaryType: PrimaryType) {
-            if  primaryType.isNested {
-                self.checkNestedLayout(primaryType)
+            let statements: [CodeBlockItemSyntax] = self.tree.statements.unrolled
+            let matchingPrimaryDeclaration: DeclSyntax?
+            if !primaryType.isNested {
+                matchingPrimaryDeclaration = statements.compactMap { (statement: CodeBlockItemSyntax) -> DeclSyntax? in
+                    guard case .decl(let declaration) = statement.item,
+                          declaration.isPrimaryType,
+                          declaration.primaryTypeName == primaryType.last else {
+                        return nil
+                    }
+                    return declaration
+                }.first
             } else {
-                self.checkTopLevelLayout(primaryType)
+                matchingPrimaryDeclaration = nil
             }
-        }
-
-        private mutating func checkNestedLayout(_ primaryType: PrimaryType) {
-            let scopeName: String = primaryType.scope!
-            let scopeType: PrimaryType = .init(scopeName)
-            let innerName: String = primaryType.last
 
             var foreignExtensionCount: Int = 0
             var primaryTypeFound: Bool = false
+            var matchingFreeFunction: Bool = false
+            var matchingTypealias: Bool = false
+            var otherPrimaryTypeNames: [String] = []
 
-            let statements: [CodeBlockItemSyntax] = self.unrollStatements(self.tree.statements)
             for statement: CodeBlockItemSyntax in statements {
                 guard case .decl(let declaration) = statement.item else {
-                    if  !statement.item.is(ImportDeclSyntax.self) {
+                    if  self.filename != "main.swift", !statement.item.is(ImportDeclSyntax.self) {
                         self.diagnose(
                             node: .init(statement),
                             message: """
@@ -255,10 +247,13 @@ extension OTPF {
                 }
 
                 if  let extensionDecl: ExtensionDeclSyntax = declaration.as(ExtensionDeclSyntax.self) {
-                    let target: PrimaryType = .init(self.canonicalTypeName(of: extensionDecl.extendedType))
-                    let trimmed: PrimaryType = .init(extensionDecl.extendedType.trimmedDescription)
-
-                    if  target == scopeType || trimmed == scopeType {
+                    let target: PrimaryType = extensionDecl.extendedType.primaryType
+                    if  target == primaryType {
+                        self.checkExtensionMembers(
+                            extensionDecl.memberBlock.members,
+                            parentType: primaryType.description
+                        )
+                    } else if let scope: String = primaryType.scope, target == PrimaryType(scope) {
                         foreignExtensionCount += 1
                         if  foreignExtensionCount > 1 {
                             self.diagnose(
@@ -267,45 +262,40 @@ extension OTPF {
                                 layout file '\(
                                     self.filename
                                 )' must contain only one extension to namespace '\(
-                                    scopeName
+                                    scope
                                 )'
                                 """
                             )
                         }
-                        let members: [MemberBlockItemSyntax] = self.unrollMembers(
-                            extensionDecl.memberBlock.members
-                        )
-                        for member: MemberBlockItemSyntax in members {
-                            if  self.primaryType(member.decl) {
-                                let name: String = self.name(of: member.decl) ?? ""
-                                if  name == innerName {
+                        for member: MemberBlockItemSyntax in extensionDecl.memberBlock.members.unrolled {
+                            if  member.decl.isPrimaryType {
+                                let name: String = member.decl.primaryTypeName ?? ""
+                                if  name == primaryType.last {
                                     primaryTypeFound = true
                                     self.checkNestedMembers(member.decl, parentType: primaryType.description)
                                 } else {
                                     self.diagnose(
                                         node: .init(member.decl),
                                         message: """
-                                        foreign extension to '\(scopeName)' in '\(
+                                        foreign extension to '\(scope)' in '\(
                                             self.filename
                                         )' must contain nothing except the definition of '\(
-                                            innerName
+                                            primaryType.last
                                         )'
                                         """
                                     )
                                 }
-                            } else if let alias: TypeAliasDeclSyntax = member.decl.as(
-                                    TypeAliasDeclSyntax.self
-                                ) {
-                                if  alias.name.text == innerName {
+                            } else if let alias: TypeAliasDeclSyntax = member.decl.as(TypeAliasDeclSyntax.self) {
+                                if  alias.name.text == primaryType.last {
                                     primaryTypeFound = true
                                 } else {
                                     self.diagnose(
                                         node: .init(alias),
                                         message: """
-                                        foreign extension to '\(scopeName)' in '\(
+                                        foreign extension to '\(scope)' in '\(
                                             self.filename
                                         )' must contain nothing except the definition of '\(
-                                            innerName
+                                            primaryType.last
                                         )'
                                         """
                                     )
@@ -314,20 +304,15 @@ extension OTPF {
                                 self.diagnose(
                                     node: .init(member.decl),
                                     message: """
-                                    foreign extension to '\(scopeName)' in '\(
+                                    foreign extension to '\(scope)' in '\(
                                         self.filename
                                     )' must contain nothing except the definition of '\(
-                                        innerName
+                                        primaryType.last
                                     )'
                                     """
                                 )
                             }
                         }
-                    } else if target == primaryType || trimmed == primaryType {
-                        self.checkExtensionMembers(
-                            extensionDecl.memberBlock.members,
-                            parentType: primaryType.description
-                        )
                     } else {
                         self.diagnose(
                             node: .init(extensionDecl),
@@ -343,110 +328,20 @@ extension OTPF {
                     continue
                 }
 
-                if  self.primaryType(declaration) {
-                    let name: String = self.name(of: declaration) ?? "unnamed"
-                    self.diagnose(
-                        node: .init(declaration),
-                        message: """
-                        one type per file violation: found top-level type '\(
-                            name
-                        )' in nested layout file '\(
-                            self.filename
-                        )'
-                        """
-                    )
-                    continue
-                }
-
-                if  let function: FunctionDeclSyntax = declaration.as(FunctionDeclSyntax.self) {
-                    self.diagnose(
-                        node: .init(declaration),
-                        message: """
-                        free function '\(
-                            function.name.text
-                        )' cannot appear in nested layout file '\(
-                            self.filename
-                        )'
-                        """
-                    )
-                    continue
-                }
-            }
-
-            if  !primaryTypeFound {
-                self.diagnose(
-                    node: .init(self.tree),
-                    message: """
-                    layout file '\(self.filename)' must define nested type '\(
-                        innerName
-                    )' inside 'extension \(
-                        scopeName
-                    )'
-                    """
-                )
-            }
-        }
-
-        private mutating func checkTopLevelLayout(_ primaryType: PrimaryType) {
-            let stem: String = primaryType.last
-            let statements: [CodeBlockItemSyntax] = self.unrollStatements(self.tree.statements)
-            let matchingPrimaryDeclaration: DeclSyntax? = statements.compactMap { (statement: CodeBlockItemSyntax) -> DeclSyntax? in
-                guard case .decl(let declaration) = statement.item, self.primaryType(declaration) else {
-                    return nil
-                }
-                return (self.name(of: declaration) == stem) ? declaration : nil
-            }.first
-
-            var primaryTypeFound: Bool = false
-            var matchingFreeFunction: Bool = false
-            var matchingTypealias: Bool = false
-            var otherPrimaryTypeNames: [String] = []
-
-            for statement: CodeBlockItemSyntax in statements {
-                guard case .decl(let declaration) = statement.item else {
-                    if  stem != "main", !statement.item.is(ImportDeclSyntax.self) {
+                if  declaration.isPrimaryType {
+                    let name: String = declaration.primaryTypeName ?? "unnamed"
+                    if  primaryType.isNested {
                         self.diagnose(
-                            node: .init(statement),
+                            node: .init(declaration),
                             message: """
-                            layout file '\(
+                            one type per file violation: found top-level type '\(
+                                name
+                            )' in nested layout file '\(
                                 self.filename
-                            )' cannot contain top-level executable statements
-                            """
-                        )
-                    }
-                    continue
-                }
-
-                if  declaration.is(ImportDeclSyntax.self) {
-                    continue
-                }
-
-                if  let extensionDecl: ExtensionDeclSyntax = declaration.as(ExtensionDeclSyntax.self) {
-                    let target: PrimaryType = .init(self.canonicalTypeName(of: extensionDecl.extendedType))
-                    let trimmed: PrimaryType = .init(extensionDecl.extendedType.trimmedDescription)
-                    if  target == primaryType || trimmed == primaryType {
-                        self.checkExtensionMembers(
-                            extensionDecl.memberBlock.members,
-                            parentType: primaryType.description
-                        )
-                    } else {
-                        self.diagnose(
-                            node: .init(extensionDecl),
-                            message: """
-                            layout file '\(
-                                self.filename
-                            )' cannot contain extension to foreign type '\(
-                                extensionDecl.extendedType.trimmedDescription
                             )'
                             """
                         )
-                    }
-                    continue
-                }
-
-                if  self.primaryType(declaration) {
-                    let name: String = self.name(of: declaration) ?? ""
-                    if  name == stem {
+                    } else if name == primaryType.last {
                         primaryTypeFound = true
                         self.checkNestedMembers(declaration, parentType: primaryType.description)
                     } else if case _? = matchingPrimaryDeclaration {
@@ -456,7 +351,7 @@ extension OTPF {
                             one type per file violation: found type '\(name)' in file '\(
                                 self.filename
                             )' which defines '\(
-                                stem
+                                primaryType.last
                             )'
                             """
                         )
@@ -483,17 +378,55 @@ extension OTPF {
                     continue
                 }
 
+                if  let function: FunctionDeclSyntax = declaration.as(FunctionDeclSyntax.self) {
+                    if  primaryType.isNested {
+                        self.diagnose(
+                            node: .init(declaration),
+                            message: """
+                            free function '\(
+                                function.name.text
+                            )' cannot appear in nested layout file '\(
+                                self.filename
+                            )'
+                            """
+                        )
+                    } else if case _? = matchingPrimaryDeclaration {
+                        self.diagnose(
+                            node: .init(declaration),
+                            message: """
+                            free function '\(function.name.text)' cannot coexist with type '\(
+                                primaryType.last
+                            )' in '\(
+                                self.filename
+                            )'
+                            """
+                        )
+                    } else if function.name.text == primaryType.last {
+                        matchingFreeFunction = true
+                    } else {
+                        self.diagnose(
+                            node: .init(declaration),
+                            message: """
+                            free function '\(function.name.text)' does not match filename '\(
+                                self.filename
+                            )'
+                            """
+                        )
+                    }
+                    continue
+                }
+
                 if  let macro: MacroDeclSyntax = declaration.as(MacroDeclSyntax.self) {
                     if  case _? = matchingPrimaryDeclaration {
                         self.diagnose(
                             node: .init(declaration),
                             message: """
-                            macro '\(macro.name.text)' cannot coexist with type '\(stem)' in '\(
+                            macro '\(macro.name.text)' cannot coexist with type '\(primaryType.last)' in '\(
                                 self.filename
                             )'
                             """
                         )
-                    } else if macro.name.text == stem {
+                    } else if macro.name.text == primaryType.last {
                         primaryTypeFound = true
                     } else {
                         self.diagnose(
@@ -509,7 +442,7 @@ extension OTPF {
                 }
 
                 if  let alias: TypeAliasDeclSyntax = declaration.as(TypeAliasDeclSyntax.self) {
-                    if  self.deprecationShim(alias, for: stem) {
+                    if  self.deprecationShim(alias, for: primaryType.last) {
                         continue
                     }
                     if  case _? = matchingPrimaryDeclaration {
@@ -517,46 +450,19 @@ extension OTPF {
                             node: .init(alias),
                             message: """
                             typealias '\(alias.name.text)' cannot coexist with type '\(
-                                stem
+                                primaryType.last
                             )' in '\(
                                 self.filename
                             )'
                             """
                         )
-                    } else if alias.name.text == stem {
+                    } else if alias.name.text == primaryType.last {
                         matchingTypealias = true
                     } else {
                         self.diagnose(
                             node: .init(alias),
                             message: """
                             typealias '\(alias.name.text)' does not match filename '\(
-                                self.filename
-                            )'
-                            """
-                        )
-                    }
-                    continue
-                }
-
-                if  let function: FunctionDeclSyntax = declaration.as(FunctionDeclSyntax.self) {
-                    if  case _? = matchingPrimaryDeclaration {
-                        self.diagnose(
-                            node: .init(declaration),
-                            message: """
-                            free function '\(function.name.text)' cannot coexist with type '\(
-                                stem
-                            )' in '\(
-                                self.filename
-                            )'
-                            """
-                        )
-                    } else if function.name.text == stem {
-                        matchingFreeFunction = true
-                    } else {
-                        self.diagnose(
-                            node: .init(declaration),
-                            message: """
-                            free function '\(function.name.text)' does not match filename '\(
                                 self.filename
                             )'
                             """
@@ -573,13 +479,13 @@ extension OTPF {
                                 node: .init(declaration),
                                 message: """
                                 top-level property '\(propertyName)' cannot coexist with type '\(
-                                    stem
+                                    primaryType.last
                                 )' in '\(
                                     self.filename
                                 )'
                                 """
                             )
-                        } else if propertyName == stem {
+                        } else if propertyName == primaryType.last {
                             matchingFreeFunction = true
                         }
                     }
@@ -587,33 +493,33 @@ extension OTPF {
                 }
             }
 
-            if  !primaryTypeFound, !matchingFreeFunction, !matchingTypealias, stem != "main" {
-                if  otherPrimaryTypeNames.isEmpty {
+            if  primaryType.isNested {
+                if  !primaryTypeFound {
                     self.diagnose(
                         node: .init(self.tree),
-                        message: "layout file '\(self.filename)' must define type '\(stem)'"
+                        message: """
+                        layout file '\(self.filename)' must define nested type '\(
+                            primaryType.last
+                        )' inside 'extension \(
+                            primaryType.scope!
+                        )'
+                        """
                     )
+                }
+            } else {
+                if  !primaryTypeFound, !matchingFreeFunction, !matchingTypealias, self.filename != "main.swift" {
+                    if  otherPrimaryTypeNames.isEmpty {
+                        self.diagnose(
+                            node: .init(self.tree),
+                            message: "layout file '\(self.filename)' must define type '\(primaryType.last)'"
+                        )
+                    }
                 }
             }
         }
 
         private mutating func checkNestedMembers(_ declaration: DeclSyntax, parentType: String) {
-            let members: MemberBlockItemListSyntax?
-            if  let structDecl: StructDeclSyntax = declaration.as(StructDeclSyntax.self) {
-                members = structDecl.memberBlock.members
-            } else if let classDecl: ClassDeclSyntax = declaration.as(ClassDeclSyntax.self) {
-                members = classDecl.memberBlock.members
-            } else if let enumDecl: EnumDeclSyntax = declaration.as(EnumDeclSyntax.self) {
-                members = enumDecl.memberBlock.members
-            } else if let actorDecl: ActorDeclSyntax = declaration.as(ActorDeclSyntax.self) {
-                members = actorDecl.memberBlock.members
-            } else if let protocolDecl: ProtocolDeclSyntax = declaration.as(ProtocolDeclSyntax.self) {
-                members = protocolDecl.memberBlock.members
-            } else {
-                members = nil
-            }
-
-            guard let members: MemberBlockItemListSyntax else {
+            guard let members: MemberBlockItemListSyntax = declaration.memberBlockItemList else {
                 return
             }
             self.checkExtensionMembers(members, parentType: parentType)
@@ -623,8 +529,7 @@ extension OTPF {
             _ members: MemberBlockItemListSyntax,
             parentType: String
         ) {
-            let unrolled: [MemberBlockItemSyntax] = self.unrollMembers(members)
-            for member: MemberBlockItemSyntax in unrolled {
+            for member: MemberBlockItemSyntax in members.unrolled {
                 if  let enumDecl: EnumDeclSyntax = member.decl.as(EnumDeclSyntax.self) {
                     let (keynum, simple): (Bool, Bool) = self.exemptKeynum(enumDecl)
                     if  keynum && simple {
@@ -658,8 +563,8 @@ extension OTPF {
                     continue
                 }
 
-                if  self.primaryType(member.decl) {
-                    let name: String = self.name(of: member.decl) ?? "unnamed"
+                if  member.decl.isPrimaryType {
+                    let name: String = member.decl.primaryTypeName ?? "unnamed"
                     self.diagnose(
                         node: .init(member.decl),
                         message: """
@@ -681,63 +586,6 @@ extension OTPF {
             self.diagnostics.append(diagnostic)
         }
 
-        private func unrollStatements(
-            _ statements: CodeBlockItemListSyntax
-        ) -> [CodeBlockItemSyntax] {
-            var result: [CodeBlockItemSyntax] = []
-            for item: CodeBlockItemSyntax in statements {
-                if  case .decl(let declaration) = item.item,
-                    let ifConfig: IfConfigDeclSyntax = declaration.as(IfConfigDeclSyntax.self) {
-                    for clause: IfConfigClauseSyntax in ifConfig.clauses {
-                        if  case .statements(let nested)? = clause.elements {
-                            result.append(contentsOf: self.unrollStatements(nested))
-                        }
-                    }
-                } else {
-                    result.append(item)
-                }
-            }
-            return result
-        }
-
-        private func unrollMembers(
-            _ members: MemberBlockItemListSyntax
-        ) -> [MemberBlockItemSyntax] {
-            var result: [MemberBlockItemSyntax] = []
-            for member: MemberBlockItemSyntax in members {
-                if  let ifConfig: IfConfigDeclSyntax = member.decl.as(IfConfigDeclSyntax.self) {
-                    for clause: IfConfigClauseSyntax in ifConfig.clauses {
-                        if  case .decls(let nested)? = clause.elements {
-                            result.append(contentsOf: self.unrollMembers(nested))
-                        }
-                    }
-                } else {
-                    result.append(member)
-                }
-            }
-            return result
-        }
-
-        private func canonicalTypeName(of type: TypeSyntax) -> String {
-            if  type.is(ArrayTypeSyntax.self) {
-                return "Array"
-            }
-            if  type.is(DictionaryTypeSyntax.self) {
-                return "Dictionary"
-            }
-            if  type.is(OptionalTypeSyntax.self) {
-                return "Optional"
-            }
-            if  let member: MemberTypeSyntax = type.as(MemberTypeSyntax.self) {
-                let base: String = self.canonicalTypeName(of: member.baseType)
-                return "\(base).\(member.name.text)"
-            }
-            if  let identifier: IdentifierTypeSyntax = type.as(IdentifierTypeSyntax.self) {
-                return identifier.name.text
-            }
-            return type.trimmedDescription
-        }
-
         private func exemptKeynum(_ enumDecl: EnumDeclSyntax) -> (
             keynum: Bool,
             simple: Bool
@@ -753,9 +601,7 @@ extension OTPF {
                 return (keynum: false, simple: false)
             }
 
-            let members: [MemberBlockItemSyntax] = self.unrollMembers(
-                enumDecl.memberBlock.members
-            )
+            let members: [MemberBlockItemSyntax] = enumDecl.memberBlock.members.unrolled
             var casesPresent: Bool = false
             for member: MemberBlockItemSyntax in members {
                 if  member.decl.is(EnumCaseDeclSyntax.self) {
@@ -779,44 +625,13 @@ extension OTPF {
                 let arguments: String = attribute.arguments?.trimmedDescription ?? ""
                 if  arguments.contains("deprecated") {
                     if  arguments.contains("renamed: \"\(expectedType)\"") ||
-                        self.canonicalTypeName(of: alias.initializer.value) == expectedType ||
+                        alias.initializer.value.canonicalTypeName == expectedType ||
                         alias.initializer.value.trimmedDescription == expectedType {
                         return true
                     }
                 }
             }
             return false
-        }
-
-        private func exportedImport(_ importDecl: ImportDeclSyntax) -> Bool {
-            for attributeElement: AttributeListSyntax.Element in importDecl.attributes {
-                if  case .attribute(let attribute) = attributeElement,
-                    attribute.attributeName.trimmedDescription == "_exported" {
-                    return true
-                }
-            }
-            return false
-        }
-
-        private func primaryType(_ declaration: DeclSyntax) -> Bool {
-            declaration.is(StructDeclSyntax.self) ||
-            declaration.is(ClassDeclSyntax.self) ||
-            declaration.is(EnumDeclSyntax.self) ||
-            declaration.is(ActorDeclSyntax.self) ||
-            declaration.is(ProtocolDeclSyntax.self)
-        }
-
-        private func name(of declaration: DeclSyntax) -> String? {
-            let raw: String?
-            if  let structDecl: StructDeclSyntax = declaration.as(StructDeclSyntax.self) { raw = structDecl.name.text }
-            else if let classDecl: ClassDeclSyntax = declaration.as(ClassDeclSyntax.self) { raw = classDecl.name.text }
-            else if let enumDecl: EnumDeclSyntax = declaration.as(EnumDeclSyntax.self) { raw = enumDecl.name.text }
-            else if let actorDecl: ActorDeclSyntax = declaration.as(ActorDeclSyntax.self) { raw = actorDecl.name.text }
-            else if let protocolDecl: ProtocolDeclSyntax = declaration.as(ProtocolDeclSyntax.self) { raw = protocolDecl.name.text }
-            else { raw = nil }
-
-            guard let raw else { return nil }
-            return PrimaryType.init(raw).last
         }
     }
 }

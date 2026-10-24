@@ -1,5 +1,5 @@
 extension OTPF {
-    public struct PrimaryType: Hashable, Sendable {
+    public struct PrimaryType: Hashable {
         public let scope: String?
         public let last: String
         public let encased: Bool
@@ -71,12 +71,6 @@ extension OTPF.PrimaryType {
     }
 }
 
-extension OTPF.PrimaryType: Comparable {
-    public static func < (lhs: Self, rhs: Self) -> Bool {
-        lhs.unencased < rhs.unencased
-    }
-}
-
 extension OTPF.PrimaryType: CustomStringConvertible {
     public var description: String {
         let lastDisplay: String = self.encased ? "`\(self.last)`" : self.last
@@ -97,8 +91,6 @@ extension OTPF.PrimaryType {
         }
     }
 }
-
-
 
 extension OTPF.PrimaryType: ExpressibleByStringLiteral {
     public init(stringLiteral value: String) {
