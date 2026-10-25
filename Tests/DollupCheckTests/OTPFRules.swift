@@ -1,6 +1,5 @@
 import DollupCheck
 import SwiftDiagnostics
-import SystemIO
 import Testing
 
 @Suite struct OTPFRules {
@@ -60,19 +59,19 @@ import Testing
     }
 
     @Test static func FileClassClassification() {
-        #expect(OTPF.FileClass.init(file: "Package.swift") == .special(.Package))
-        #expect(OTPF.FileClass.init(file: "anchor.swift") == .special(.anchor))
-        #expect(OTPF.FileClass.init(file: "exports.swift") == .special(.exports))
-        #expect(OTPF.FileClass.init(file: "lexemes.swift") == .special(.lexemes))
-        #expect(OTPF.FileClass.init(file: "operators.swift") == .special(.operators))
+        #expect(OTPF.FileClass.init(name: "Package.swift") == .layout("Package"))
+        #expect(OTPF.FileClass.init(name: "anchor.swift") == .special(.anchor))
+        #expect(OTPF.FileClass.init(name: "exports.swift") == .special(.exports))
+        #expect(OTPF.FileClass.init(name: "lexemes.swift") == .special(.lexemes))
+        #expect(OTPF.FileClass.init(name: "operators.swift") == .special(.operators))
 
-        #expect(OTPF.FileClass.init(file: "Foo (ext).swift") == .ext("Foo"))
-        #expect(OTPF.FileClass.init(file: "Outer.Inner (ext).swift") == .ext("Outer.Inner"))
-        #expect(OTPF.FileClass.init(file: "Foo (gen).swift") == .gen("Foo"))
+        #expect(OTPF.FileClass.init(name: "Foo (ext).swift") == .ext("Foo"))
+        #expect(OTPF.FileClass.init(name: "Outer.Inner (ext).swift") == .ext("Outer.Inner"))
+        #expect(OTPF.FileClass.init(name: "Foo (gen).swift") == .gen("Foo"))
 
-        #expect(OTPF.FileClass.init(file: "Foo.swift") == .layout("Foo"))
-        #expect(OTPF.FileClass.init(file: "Outer.Inner.swift") == .layout("Outer.Inner"))
-        #expect(OTPF.FileClass.init(file: "README.md") == nil)
+        #expect(OTPF.FileClass.init(name: "Foo.swift") == .layout("Foo"))
+        #expect(OTPF.FileClass.init(name: "Outer.Inner.swift") == .layout("Outer.Inner"))
+        #expect(OTPF.FileClass.init(name: "README.md") == nil)
     }
 
     @Test static func LayoutFileWithBacktickKeyword() {
@@ -86,7 +85,7 @@ import Testing
         """
         let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
-            in: FilePath.init("default.swift")
+            in: "default.swift"
         )
         #expect(diagnostics.isEmpty)
     }
@@ -104,7 +103,7 @@ import Testing
         """
         let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
-            in: FilePath.init("Outer.default.swift")
+            in: "Outer.default.swift"
         )
         #expect(diagnostics.isEmpty)
     }
@@ -120,7 +119,7 @@ import Testing
         """
         let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
-            in: FilePath.init("Foo.swift")
+            in: "Foo.swift"
         )
         #expect(diagnostics.isEmpty)
     }
@@ -131,7 +130,7 @@ import Testing
         """
         let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
-            in: FilePath.init("Foo.swift")
+            in: "Foo.swift"
         )
         #expect(diagnostics.count == 1)
         #expect(diagnostics.first?.message.contains("does not match filename") == true)
@@ -144,7 +143,7 @@ import Testing
         """
         let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
-            in: FilePath.init("Foo.swift")
+            in: "Foo.swift"
         )
         #expect(diagnostics.count == 1)
         #expect(
@@ -162,7 +161,7 @@ import Testing
         """
         let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
-            in: FilePath.init("Foo.swift")
+            in: "Foo.swift"
         )
         #expect(diagnostics.count == 1)
         #expect(
@@ -181,7 +180,7 @@ import Testing
         """
         let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
-            in: FilePath.init("Foo.swift")
+            in: "Foo.swift"
         )
         #expect(diagnostics.count == 1)
         #expect(
@@ -202,7 +201,7 @@ import Testing
         """
         let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
-            in: FilePath.init("Foo.swift")
+            in: "Foo.swift"
         )
         #expect(diagnostics.isEmpty)
     }
@@ -219,7 +218,7 @@ import Testing
         """
         let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
-            in: FilePath.init("Foo.swift")
+            in: "Foo.swift"
         )
         #expect(diagnostics.count == 1)
         #expect(
@@ -238,7 +237,7 @@ import Testing
         """
         let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
-            in: FilePath.init("Foo.swift")
+            in: "Foo.swift"
         )
         #expect(diagnostics.isEmpty)
     }
@@ -250,7 +249,7 @@ import Testing
         """
         let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
-            in: FilePath.init("Partition.swift")
+            in: "Partition.swift"
         )
         #expect(diagnostics.isEmpty)
     }
@@ -262,7 +261,7 @@ import Testing
         """
         let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
-            in: FilePath.init("Foo.swift")
+            in: "Foo.swift"
         )
         #expect(diagnostics.count == 1)
         #expect(
@@ -285,7 +284,7 @@ import Testing
         """
         let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
-            in: FilePath.init("Foo.Bar.swift")
+            in: "Foo.Bar.swift"
         )
         #expect(diagnostics.isEmpty)
     }
@@ -299,7 +298,7 @@ import Testing
         """
         let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
-            in: FilePath.init("Foo.Bar.swift")
+            in: "Foo.Bar.swift"
         )
         #expect(diagnostics.count == 1)
         #expect(
@@ -317,7 +316,7 @@ import Testing
         """
         let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
-            in: FilePath.init("Foo.Bar.swift")
+            in: "Foo.Bar.swift"
         )
         #expect(
             diagnostics.contains {
@@ -334,7 +333,7 @@ import Testing
         """
         let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
-            in: FilePath.init("Foo (ext).swift")
+            in: "Foo (ext).swift"
         )
         #expect(diagnostics.isEmpty)
     }
@@ -350,7 +349,7 @@ import Testing
         """
         let arrayDiagnostics: [Diagnostic] = OTPF.check(
             source: arraySource,
-            in: FilePath.init("Array (ext).swift")
+            in: "Array (ext).swift"
         )
         #expect(arrayDiagnostics.isEmpty)
 
@@ -361,7 +360,7 @@ import Testing
         """
         let dictDiagnostics: [Diagnostic] = OTPF.check(
             source: dictSource,
-            in: FilePath.init("Dictionary (ext).swift")
+            in: "Dictionary (ext).swift"
         )
         #expect(dictDiagnostics.isEmpty)
     }
@@ -377,7 +376,7 @@ import Testing
         """
         let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
-            in: FilePath.init("Foo (ext).swift")
+            in: "Foo (ext).swift"
         )
         #expect(diagnostics.count == 1)
         #expect(
@@ -391,7 +390,7 @@ import Testing
         """
         let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
-            in: FilePath.init("Foo (ext).swift")
+            in: "Foo (ext).swift"
         )
         #expect(diagnostics.count == 1)
         #expect(diagnostics.first?.message.contains("cannot define primary type 'Foo'") == true)
@@ -405,7 +404,7 @@ import Testing
         """
         let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
-            in: FilePath.init("Foo (ext).swift")
+            in: "Foo (ext).swift"
         )
         #expect(diagnostics.isEmpty)
     }
@@ -418,7 +417,7 @@ import Testing
         """
         let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
-            in: FilePath.init("Foo+Bar.swift")
+            in: "Foo+Bar.swift"
         )
         #expect(diagnostics.count == 1)
         #expect(
@@ -431,13 +430,13 @@ import Testing
     @Test static func AnchorSwift() {
         let emptyDiagnostics: [Diagnostic] = OTPF.check(
             source: "",
-            in: FilePath.init("anchor.swift")
+            in: "anchor.swift"
         )
         #expect(emptyDiagnostics.isEmpty)
 
         let nonEmptyDiagnostics: [Diagnostic] = OTPF.check(
             source: "import Foundation",
-            in: FilePath.init("anchor.swift")
+            in: "anchor.swift"
         )
         #expect(nonEmptyDiagnostics.count == 1)
         #expect(
@@ -452,7 +451,7 @@ import Testing
         """
         let validDiagnostics: [Diagnostic] = OTPF.check(
             source: validSource,
-            in: FilePath.init("exports.swift")
+            in: "exports.swift"
         )
         #expect(validDiagnostics.isEmpty)
 
@@ -461,7 +460,7 @@ import Testing
         """
         let invalidDiagnostics: [Diagnostic] = OTPF.check(
             source: invalidSource,
-            in: FilePath.init("exports.swift")
+            in: "exports.swift"
         )
         #expect(invalidDiagnostics.count == 1)
         #expect(
@@ -476,7 +475,7 @@ import Testing
         """
         let misplacedDiagnostics: [Diagnostic] = OTPF.check(
             source: misplacedExport,
-            in: FilePath.init("Foo.swift")
+            in: "Foo.swift"
         )
         #expect(misplacedDiagnostics.count == 1)
         #expect(
@@ -495,7 +494,7 @@ import Testing
         """
         let lexemesDiagnostics: [Diagnostic] = OTPF.check(
             source: lexemesSource,
-            in: FilePath.init("lexemes.swift")
+            in: "lexemes.swift"
         )
         #expect(lexemesDiagnostics.isEmpty)
 
@@ -505,7 +504,7 @@ import Testing
         """
         let misplacedDiagnostics: [Diagnostic] = OTPF.check(
             source: misplacedOperator,
-            in: FilePath.init("Foo.swift")
+            in: "Foo.swift"
         )
         #expect(
             misplacedDiagnostics.contains {
@@ -522,7 +521,7 @@ import Testing
         """
         let operatorsDiagnostics: [Diagnostic] = OTPF.check(
             source: operatorsSource,
-            in: FilePath.init("operators.swift")
+            in: "operators.swift"
         )
         #expect(operatorsDiagnostics.isEmpty)
 
@@ -531,7 +530,7 @@ import Testing
         """
         let operatorsTypeDiagnostics: [Diagnostic] = OTPF.check(
             source: operatorsWithTypes,
-            in: FilePath.init("operators.swift")
+            in: "operators.swift"
         )
         #expect(operatorsTypeDiagnostics.count == 1)
         #expect(
@@ -553,7 +552,7 @@ import Testing
         """
         let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
-            in: FilePath.init("Foo.swift")
+            in: "Foo.swift"
         )
         #expect(diagnostics.count == 2)
         #expect(diagnostics.contains { $0.message.contains("NestedLinux") })
@@ -565,14 +564,12 @@ import Testing
         public struct Foo {}
         public struct Bar {}
         """
-        let diagnostics: OTPF.Diagnostics? = OTPF.diagnose(
+        let formatted: String? = OTPF.diagnose(
             source: source,
-            in: FilePath.init("Foo.swift")
+            in: "Foo.swift"
         )
-        #expect(diagnostics != nil)
-        let formatted: String = diagnostics?.description ?? ""
-        #expect(formatted.contains("error: in 'Foo.swift':"))
-        #expect(formatted.contains("one type per file violation"))
+        #expect(formatted != nil)
+        #expect(formatted?.contains("one type per file violation") == true)
     }
 
     @Test static func ExtensionFileNestedTypeSuggestion() {
@@ -583,7 +580,7 @@ import Testing
         """
         let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
-            in: FilePath.init("Foo.Bar (ext).swift")
+            in: "Foo.Bar (ext).swift"
         )
         #expect(diagnostics.count == 2)
         #expect(diagnostics.contains { $0.message.contains("Foo.Bar.swift") })
@@ -597,7 +594,7 @@ import Testing
         """
         let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
-            in: FilePath.init("Partition.swift")
+            in: "Partition.swift"
         )
         #expect(diagnostics.count == 1)
         #expect(
@@ -614,7 +611,7 @@ import Testing
         """
         let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
-            in: FilePath.init("Foo (ext).swift")
+            in: "Foo (ext).swift"
         )
         #expect(diagnostics.count == 1)
         #expect(
@@ -632,7 +629,7 @@ import Testing
         """
         let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
-            in: FilePath.init("lexemes.swift")
+            in: "lexemes.swift"
         )
         #expect(diagnostics.isEmpty)
     }
@@ -644,7 +641,7 @@ import Testing
         """
         let targetDiagnostics: [Diagnostic] = OTPF.check(
             source: targetSource,
-            in: FilePath.init("Sources/X/Package.swift")
+            in: "Package.swift"
         )
         #expect(targetDiagnostics.count == 1)
         #expect(
@@ -653,14 +650,14 @@ import Testing
             ) == true
         )
 
-        let rootSource: String = """
-        // manifest
+        let validSource: String = """
+        struct Package {}
         """
-        let rootDiagnostics: [Diagnostic] = OTPF.check(
-            source: rootSource,
-            in: FilePath.init("Package.swift")
+        let validDiagnostics: [Diagnostic] = OTPF.check(
+            source: validSource,
+            in: "Package.swift"
         )
-        #expect(rootDiagnostics.isEmpty)
+        #expect(validDiagnostics.isEmpty)
     }
 
     @Test static func LayoutFileMismatchExtensionNoise() {
@@ -675,7 +672,7 @@ import Testing
         """
         let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
-            in: FilePath.init("Foo.swift")
+            in: "Foo.swift"
         )
         #expect(diagnostics.count == 1)
         #expect(

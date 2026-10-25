@@ -1,40 +1,36 @@
 import SwiftDiagnostics
 import SwiftParser
 import SwiftSyntax
-import SystemIO
 
 public enum OTPF {
-    public typealias Diagnostics = DollupCheck.Diagnostics
-
     public static func check(
         source: String,
-        in file: FilePath
+        in name: String
     ) -> [Diagnostic] {
         let tree: SourceFileSyntax = Parser.parse(source: source)
-        return self.check(tree: tree, in: file)
+        return self.check(tree: tree, in: name)
     }
 
     public static func check(
         tree: SourceFileSyntax,
-        in file: FilePath
+        in name: String
     ) -> [Diagnostic] {
-        var checker: Checker = .init(tree: tree, path: file)
+        var checker: Checker = .init(tree: tree, name: name)
         return checker.check()
     }
 
     public static func diagnose(
         source: String,
-        in file: FilePath
-    ) -> Diagnostics? {
+        in name: String
+    ) -> String? {
         let tree: SourceFileSyntax = Parser.parse(source: source)
-        let diagnostics: [Diagnostic] = self.check(tree: tree, in: file)
+        let diagnostics: [Diagnostic] = self.check(tree: tree, in: name)
         guard !diagnostics.isEmpty else {
             return nil
         }
-        let annotated: String = DiagnosticsFormatter.annotatedSource(
+        return DiagnosticsFormatter.annotatedSource(
             tree: tree,
             diags: diagnostics
         )
-        return .init(file: file, message: annotated)
     }
 }
