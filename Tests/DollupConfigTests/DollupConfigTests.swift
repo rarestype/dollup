@@ -3,21 +3,14 @@ import SystemPackage
 import Testing
 
 @Suite struct DollupConfigTests {
-    @Test static func PackageManifestDetection() {
-        #expect(FilePath.init("Package.swift").packageManifest)
-        #expect(FilePath.init("./Package.swift").packageManifest)
-        #expect(FilePath.init("/swift/project/Package.swift").packageManifest)
-        #expect(FilePath.init("Benchmarks/Package.swift").packageManifest)
-
-        #expect(!FilePath.init("Sources/Target/Foo.swift").packageManifest)
-        #expect(!FilePath.init("Package.json").packageManifest)
-    }
-
     @Test static func CheckFiltration() throws {
         #expect(try !DefaultConfig.check(file: FilePath.init("Package.swift")))
         #expect(try !DefaultConfig.check(file: FilePath.init("./Package.swift")))
-        #expect(try !DefaultConfig.check(file: FilePath.init("/swift/dollup/Package.swift")))
+        #expect(try !DefaultConfig.check(file: FilePath.init("/swift/project/Package.swift")))
+        #expect(try !DefaultConfig.check(file: FilePath.init("Benchmarks/Package.swift")))
+
         #expect(try DefaultConfig.check(file: FilePath.init("Sources/Target/Foo.swift")))
+        #expect(try DefaultConfig.check(file: FilePath.init("Package.json")))
     }
 
     @Test static func CheckWitness() throws {
