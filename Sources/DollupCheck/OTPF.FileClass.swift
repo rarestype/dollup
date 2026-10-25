@@ -30,8 +30,4 @@ extension OTPF.FileClass {
             self = .layout(.init(stem))
         }
     }
-
-    public init?(file: String) {
-        self.init(name: file)
-    }
 }

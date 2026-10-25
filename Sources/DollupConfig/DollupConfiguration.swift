@@ -15,7 +15,7 @@ extension DollupConfiguration {
     public static func report(file _: FilePath) throws {}
 
     public static func check(file: FilePath) throws -> Bool {
-        try self.filter(file: file) && !file.isPackageManifest
+        try self.filter(file: file) && !file.packageManifest
     }
 
     public static func check(

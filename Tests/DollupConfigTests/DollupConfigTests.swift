@@ -4,13 +4,13 @@ import Testing
 
 @Suite struct DollupConfigTests {
     @Test static func PackageManifestDetection() {
-        #expect(FilePath.init("Package.swift").isPackageManifest)
-        #expect(FilePath.init("./Package.swift").isPackageManifest)
-        #expect(FilePath.init("/swift/project/Package.swift").isPackageManifest)
-        #expect(FilePath.init("Benchmarks/Package.swift").isPackageManifest)
+        #expect(FilePath.init("Package.swift").packageManifest)
+        #expect(FilePath.init("./Package.swift").packageManifest)
+        #expect(FilePath.init("/swift/project/Package.swift").packageManifest)
+        #expect(FilePath.init("Benchmarks/Package.swift").packageManifest)
 
-        #expect(!FilePath.init("Sources/Target/Foo.swift").isPackageManifest)
-        #expect(!FilePath.init("Package.json").isPackageManifest)
+        #expect(!FilePath.init("Sources/Target/Foo.swift").packageManifest)
+        #expect(!FilePath.init("Package.json").packageManifest)
     }
 
     @Test static func CheckFiltration() throws {
