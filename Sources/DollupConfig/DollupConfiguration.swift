@@ -15,19 +15,15 @@ extension DollupConfiguration {
     public static func report(file _: FilePath) throws {}
 
     public static func check(file: FilePath) throws -> Bool {
-        if  case "Package.swift"? = file.components.last?.string {
-            false
-        } else {
-            try self.filter(file: file)
-        }
+        try self.filter(file: file)
     }
 
     public static func check(
         name: FilePath.Component,
         text: String
     ) throws -> Diagnostics? {
-        if  let message: String = OTPF.diagnose(source: text, in: name.string) {
-            Diagnostics.init(message: message)
+        if  let (message, error): (String, Bool) = OTPF.diagnose(source: text, in: name.string) {
+            Diagnostics.init(message: message, error: error)
         } else {
             nil
         }
@@ -149,6 +145,6 @@ extension DollupConfiguration {
         guard let diagnostics: Diagnostics = try self.check(name: component, text: text) else {
             return nil
         }
-        return Diagnostics.init(file: file, message: diagnostics.message)
+        return Diagnostics.init(file: file, message: diagnostics.message, error: diagnostics.error)
     }
 }

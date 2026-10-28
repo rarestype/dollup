@@ -32,6 +32,23 @@ extension OTPF.Checker {
             return self.diagnostics
         }
 
+        if  OTPF.manifest(name: self.name) {
+            let toolsVersion: Bool = self.toolsVersion
+            if  let packageDeclaration: Syntax = self.packageDeclaration {
+                if  toolsVersion {
+                    self.diagnose(
+                        node: packageDeclaration,
+                        message: """
+                        file '\(self.name)' declares type ‘Package’ but looks like a package manifest (starts with “// swift-tools-version:”), this is probably unintentional
+                        """,
+                        severity: .warning
+                    )
+                }
+            } else if toolsVersion {
+                return self.diagnostics
+            }
+        }
+
         switch fileClass {
         case .special(let special):
             self.checkSpecial(special)
@@ -656,13 +673,66 @@ extension OTPF.Checker {
         }
     }
 
-    private mutating func diagnose(node: Syntax, message: String) {
+    private mutating func diagnose(
+        node: Syntax,
+        message: String,
+        severity: DiagnosticSeverity = .error
+    ) {
         let diagnostic: Diagnostic = .init(
             node: node,
             position: node.positionAfterSkippingLeadingTrivia,
-            message: OTPF.DiagnosticMessage.init(message)
+            message: OTPF.DiagnosticMessage.init(message, severity: severity)
         )
         self.diagnostics.append(diagnostic)
+    }
+
+    private var toolsVersion: Bool {
+        let text: String = self.tree.description
+        var index: String.Index = text.startIndex
+        while index < text.endIndex {
+            let lineEnd: String.Index = text[index...].firstIndex(of: "\n") ?? text.endIndex
+            let line: Substring = text[index ..< lineEnd]
+            let trimmed: Substring = line.drop(while: { $0 == " " || $0 == "\t" || $0 == "\r" })
+            if  !trimmed.isEmpty {
+                guard trimmed.hasPrefix("//") else {
+                    return false
+                }
+                let commentBody: Substring = trimmed.dropFirst(2).drop(while: { $0 == " " || $0 == "\t" })
+                return commentBody.hasPrefix("swift-tools-version:")
+            }
+            if  lineEnd == text.endIndex {
+                break
+            }
+            index = text.index(after: lineEnd)
+        }
+        return false
+    }
+
+    private var packageDeclaration: Syntax? {
+        for statement: CodeBlockItemSyntax in self.tree.statements.unrolled {
+            guard case .decl(let declaration) = statement.item else {
+                continue
+            }
+            if  declaration.primaryType?.last == "Package" {
+                return .init(declaration)
+            }
+            if  let typealiasDecl: TypeAliasDeclSyntax = declaration.as(TypeAliasDeclSyntax.self),
+                typealiasDecl.name.text == "Package" {
+                return .init(typealiasDecl)
+            }
+            if  let extensionDecl: ExtensionDeclSyntax = declaration.as(ExtensionDeclSyntax.self) {
+                for member: MemberBlockItemSyntax in extensionDecl.memberBlock.members.unrolled {
+                    if  member.decl.primaryType?.last == "Package" {
+                        return .init(member.decl)
+                    }
+                    if  let typealiasDecl: TypeAliasDeclSyntax = member.decl.as(TypeAliasDeclSyntax.self),
+                        typealiasDecl.name.text == "Package" {
+                        return .init(typealiasDecl)
+                    }
+                }
+            }
+        }
+        return nil
     }
 
     private static func exemptKeynum(_ enumDeclaration: EnumDeclSyntax) -> (

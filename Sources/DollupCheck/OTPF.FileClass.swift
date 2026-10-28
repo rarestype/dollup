@@ -15,8 +15,16 @@ extension OTPF.FileClass {
             return nil
         }
 
-        let stemEnd: String.Index = name.index(name.endIndex, offsetBy: -6)
-        let stem: Substring = name[..<stemEnd]
+        let filename: Substring
+        if  let slash: String.Index = name.lastIndex(of: "/") {
+            let next: String.Index = name.index(after: slash)
+            filename = name[next...]
+        } else {
+            filename = name[...]
+        }
+
+        let stemEnd: String.Index = filename.index(filename.endIndex, offsetBy: -6)
+        let stem: Substring = filename[..<stemEnd]
 
         if  let special: Special = Special.init(rawValue: String.init(stem)) {
             self = .special(special)
@@ -26,6 +34,8 @@ extension OTPF.FileClass {
         } else if stem.hasSuffix(" (gen)") {
             let typeEnd: String.Index = stem.index(stem.endIndex, offsetBy: -6)
             self = .gen(.init(stem[..<typeEnd]))
+        } else if OTPF.manifest(name: String.init(filename)) {
+            self = .layout("Package")
         } else {
             self = .layout(.init(stem))
         }

@@ -564,12 +564,13 @@ import Testing
         public struct Foo {}
         public struct Bar {}
         """
-        let formatted: String? = OTPF.diagnose(
+        let formatted: (message: String, error: Bool)? = OTPF.diagnose(
             source: source,
             in: "Foo.swift"
         )
         #expect(formatted != nil)
-        #expect(formatted?.contains("one type per file violation") == true)
+        #expect(formatted?.message.contains("one type per file violation") == true)
+        #expect(formatted?.error == true)
     }
 
     @Test static func ExtensionFileNestedTypeSuggestion() {
@@ -634,6 +635,108 @@ import Testing
         #expect(diagnostics.isEmpty)
     }
 
+    @Test static func PackageManifestDetection() {
+        #expect(OTPF.manifest(name: "Package.swift"))
+        #expect(OTPF.manifest(name: "./Package.swift"))
+        #expect(OTPF.manifest(name: "Sources/X/Package.swift"))
+        #expect(OTPF.manifest(name: "/swift/project/Package.swift"))
+        #expect(OTPF.manifest(name: "Package@swift-5.9.swift"))
+        #expect(OTPF.manifest(name: "Package@swift-6.2.swift"))
+        #expect(OTPF.manifest(name: "Package@swift-10.15.swift"))
+
+        #expect(!OTPF.manifest(name: "Package@swift-5.swift"))
+        #expect(!OTPF.manifest(name: "Package@swift-5.9.1.swift"))
+        #expect(!OTPF.manifest(name: "Package@swift-foo.swift"))
+        #expect(!OTPF.manifest(name: "Foo.swift"))
+        #expect(!OTPF.manifest(name: "Package.json"))
+    }
+
+    @Test static func PackageSwiftRootManifest() {
+        let manifest: String = """
+        // swift-tools-version:6.2
+        import PackageDescription
+
+        let package = Package(
+            name: "Dollup"
+        )
+        """
+        let diagnostics: [Diagnostic] = OTPF.check(
+            source: manifest,
+            in: "Package.swift"
+        )
+        #expect(diagnostics.isEmpty)
+
+        let manifestWithBlanks: String = """
+
+
+        // swift-tools-version: 5.9
+        import PackageDescription
+
+        let package = Package(
+            name: "Dollup"
+        )
+        """
+        let blankDiagnostics: [Diagnostic] = OTPF.check(
+            source: manifestWithBlanks,
+            in: "Package.swift"
+        )
+        #expect(blankDiagnostics.isEmpty)
+    }
+
+    @Test static func PackageSwiftVersionSpecificManifest() {
+        let versionManifest: String = """
+        // swift-tools-version:5.9
+        import PackageDescription
+
+        let package = Package(
+            name: "Dollup"
+        )
+        """
+        let diagnostics: [Diagnostic] = OTPF.check(
+            source: versionManifest,
+            in: "Package@swift-5.9.swift"
+        )
+        #expect(diagnostics.isEmpty)
+    }
+
+    @Test static func PackageSwiftTargetWithToolsVersionWarning() {
+        let source: String = """
+        // swift-tools-version:6.2
+        struct Package {}
+        """
+        let diagnostics: [Diagnostic] = OTPF.check(
+            source: source,
+            in: "Sources/X/Package.swift"
+        )
+        #expect(diagnostics.count == 1)
+        #expect(diagnostics.first?.diagMessage.severity == .warning)
+        #expect(
+            diagnostics.first?.message.contains(
+                "file 'Sources/X/Package.swift' declares type ‘Package’ but looks like a package manifest (starts with “// swift-tools-version:”), this is probably unintentional"
+            ) == true
+        )
+    }
+
+    @Test static func PackageSwiftTargetWithToolsVersionWarningAndError() {
+        let source: String = """
+        // swift-tools-version:6.2
+        struct Package {}
+        struct Other {}
+        """
+        let diagnostics: [Diagnostic] = OTPF.check(
+            source: source,
+            in: "Package.swift"
+        )
+        #expect(diagnostics.count == 2)
+        #expect(diagnostics.contains { $0.diagMessage.severity == .warning })
+        #expect(diagnostics.contains { $0.diagMessage.severity == .error })
+        #expect(
+            diagnostics.contains {
+                $0.message.contains("one type per file violation: found type 'Other' in file 'Package.swift'")
+            }
+        )
+    }
+
     @Test static func PackageSwiftInTargetIsLayoutFile() {
         let targetSource: String = """
         struct Package {}
@@ -644,6 +747,7 @@ import Testing
             in: "Package.swift"
         )
         #expect(targetDiagnostics.count == 1)
+        #expect(targetDiagnostics.first?.diagMessage.severity == .error)
         #expect(
             targetDiagnostics.first?.message.contains(
                 "one type per file violation: found type 'Other' in file 'Package.swift'"
@@ -658,6 +762,18 @@ import Testing
             in: "Package.swift"
         )
         #expect(validDiagnostics.isEmpty)
+
+        let nonManifestSource: String = """
+        // Copyright 2026
+        // swift-tools-version:6.2
+        struct Other {}
+        """
+        let nonManifestDiagnostics: [Diagnostic] = OTPF.check(
+            source: nonManifestSource,
+            in: "Package.swift"
+        )
+        #expect(!nonManifestDiagnostics.isEmpty)
+        #expect(nonManifestDiagnostics.allSatisfy { $0.diagMessage.severity == .error })
     }
 
     @Test static func LayoutFileMismatchExtensionNoise() {
