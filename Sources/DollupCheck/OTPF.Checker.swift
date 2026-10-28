@@ -39,7 +39,10 @@ extension OTPF.Checker {
                     self.diagnose(
                         node: packageDeclaration,
                         message: """
-                        file '\(self.name)' declares type ‘Package’ but looks like a package manifest (starts with “// swift-tools-version:”), this is probably unintentional
+                        file '\(
+                            self.name
+                        )' declares type ‘Package’ but looks like a package manifest (starts \
+                        with “// swift-tools-version:”), this is probably unintentional
                         """,
                         severity: .warning
                     )
@@ -697,7 +700,9 @@ extension OTPF.Checker {
                 guard trimmed.hasPrefix("//") else {
                     return false
                 }
-                let commentBody: Substring = trimmed.dropFirst(2).drop(while: { $0 == " " || $0 == "\t" })
+                let commentBody: Substring = trimmed.dropFirst(2).drop(
+                    while: { $0 == " " || $0 == "\t" }
+                )
                 return commentBody.hasPrefix("swift-tools-version:")
             }
             if  lineEnd == text.endIndex {
@@ -716,16 +721,25 @@ extension OTPF.Checker {
             if  declaration.primaryType?.last == "Package" {
                 return .init(declaration)
             }
-            if  let typealiasDecl: TypeAliasDeclSyntax = declaration.as(TypeAliasDeclSyntax.self),
+            if  let typealiasDecl: TypeAliasDeclSyntax = declaration.as(
+                    TypeAliasDeclSyntax.self
+                ),
                 typealiasDecl.name.text == "Package" {
                 return .init(typealiasDecl)
             }
-            if  let extensionDecl: ExtensionDeclSyntax = declaration.as(ExtensionDeclSyntax.self) {
-                for member: MemberBlockItemSyntax in extensionDecl.memberBlock.members.unrolled {
+            if  let extensionDecl: ExtensionDeclSyntax = declaration.as(
+                    ExtensionDeclSyntax.self
+                ) {
+                for member: MemberBlockItemSyntax in extensionDecl
+                    .memberBlock
+                    .members
+                    .unrolled {
                     if  member.decl.primaryType?.last == "Package" {
                         return .init(member.decl)
                     }
-                    if  let typealiasDecl: TypeAliasDeclSyntax = member.decl.as(TypeAliasDeclSyntax.self),
+                    if  let typealiasDecl: TypeAliasDeclSyntax = member.decl.as(
+                            TypeAliasDeclSyntax.self
+                        ),
                         typealiasDecl.name.text == "Package" {
                         return .init(typealiasDecl)
                     }

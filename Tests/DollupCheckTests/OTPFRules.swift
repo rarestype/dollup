@@ -712,7 +712,11 @@ import Testing
         #expect(diagnostics.first?.diagMessage.severity == .warning)
         #expect(
             diagnostics.first?.message.contains(
-                "file 'Sources/X/Package.swift' declares type ‘Package’ but looks like a package manifest (starts with “// swift-tools-version:”), this is probably unintentional"
+                """
+                file 'Sources/X/Package.swift' declares type ‘Package’ but looks like a \
+                package manifest (starts with “// swift-tools-version:”), this is probably \
+                unintentional
+                """
             ) == true
         )
     }
@@ -732,7 +736,9 @@ import Testing
         #expect(diagnostics.contains { $0.diagMessage.severity == .error })
         #expect(
             diagnostics.contains {
-                $0.message.contains("one type per file violation: found type 'Other' in file 'Package.swift'")
+                $0.message.contains(
+                    "one type per file violation: found type 'Other' in file 'Package.swift'"
+                )
             }
         )
     }

@@ -22,7 +22,10 @@ extension DollupConfiguration {
         name: FilePath.Component,
         text: String
     ) throws -> Diagnostics? {
-        if  let (message, error): (String, Bool) = OTPF.diagnose(source: text, in: name.string) {
+        if  let (message, error): (String, Bool) = OTPF.diagnose(
+                source: text,
+                in: name.string
+            ) {
             Diagnostics.init(message: message, error: error)
         } else {
             nil
@@ -145,6 +148,10 @@ extension DollupConfiguration {
         guard let diagnostics: Diagnostics = try self.check(name: component, text: text) else {
             return nil
         }
-        return Diagnostics.init(file: file, message: diagnostics.message, error: diagnostics.error)
+        return Diagnostics.init(
+            file: file,
+            message: diagnostics.message,
+            error: diagnostics.error
+        )
     }
 }
