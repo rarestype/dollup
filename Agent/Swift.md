@@ -335,6 +335,41 @@ As a rule, names should always be spelled with the minimal amount of qualificati
 Module qualification is discouraged in idiomatic Swift code.
 
 
+### Where helpers go
+
+A helper that only inspects its argument, to answer a question about that argument, belongs to the argument’s type, not to the type that happens to call it. Make it a member in an extension on the argument’s type (in that type’s layout file, or its extension file if the type comes from another module). Otherwise, coordinator types such as checkers, visitors and formatters turn into dumping grounds for functions that have nothing to do with their state.
+
+```swift
+// good — the question is about the hyperlink, so the hyperlink answers it
+// the callers read fluently, for example: `link.points(to: domain)`
+extension Hyperlink {
+    func points(to domain: Domain) -> Bool {}
+}
+
+// bad — `NodeVisitor` holds the function, but nothing in it uses the visitor’s state
+// the callers look awkward, for example: `self.doesPointToDomain(link: link, to: domain)`
+extension NodeVisitor {
+    func doesPointToDomain(link: Hyperlink, to domain: Domain) -> Bool {}
+}
+```
+
+A helper that does belong to a coordinator’s domain, but never reads or writes `self`, should be a `static func`. That way, the signature shows that calling it can’t depend on, or change, the state of a pass in progress. Keep instance methods for the code that reads or mutates instance state, so that a reader can assume every instance method does.
+
+```swift
+// good — we assume that percent-encoding in this context is tied closely enough to `URI` that
+// it would make sense to scope it under `URI`’s namespace, and it doesn’t depend on the state
+// of any particular instance of `URI`, so a static function is appropriate
+extension URI {
+    private static func escape(unencoded: String) -> String {}
+}
+
+// bad — looks like it depends on the URI instance’s state, but doesn’t
+extension URI {
+    private func escape(unencoded: String) -> String {}
+}
+```
+
+
 ## Writing code
 
 In general, we believe in the principle that code is edited far more often than it is written, and that code is read far more often than it is edited. So we prioritize ease of reading, editing, and writing, in that order. In particular, navigating counts as reading, so we always prioritize keeping code navigable over simply making code fast to write or generate.
@@ -792,6 +827,43 @@ if  case magic = y {}
 Rigorous adherence to `case`-based destructuring and pattern matching will help limit the number of `Equatable` conformances that must be virally propogated everywhere, which helps keep APIs lean and free of unnecessary conformances.
 
 
+#### Comparing several fields
+
+To compare several fields at once, compare tuples instead of chaining `==` with `&&`. The tuple lines the fields up, so a missing or mismatched field is visible at a glance.
+
+```swift
+// good
+static func == (a: Self, b: Self) -> Bool { (a.scope, a.last) == (b.scope, b.last) }
+
+// bad
+static func == (a: Self, b: Self) -> Bool { a.scope == b.scope && a.last == b.last }
+```
+
+This is especially useful for writing ``Comparable`` conformances, which tend to be gnarly when written out using manual field-by-field comparison logic.
+
+
+### Conditions
+
+Separate the conditions of an `if`, `guard` or `while` with commas, not `&&`. Each comma-separated condition can be a binding or a pattern, gets its own line, and can be reordered or deleted without rebalancing an expression. Likewise, merge an `if` nested directly inside another `if` (with no `else` on either) into a single statement.
+
+```swift
+// good
+if  arguments.contains("deprecated"),
+    self.name != "main.swift" {
+    return true
+}
+
+// bad — one condition is buried in an expression, and the other in a nested `if`
+if  arguments.contains("deprecated") {
+    if !self.name.isEmpty && self.name != "main.swift" {
+        return true
+    }
+}
+```
+
+`&&` is still correct inside an expression whose value you store or return, such as `let ready: Bool = a && b`.
+
+
 ### Functional patterns
 
 The `reduce(into:_:)` method is your friend, use it to return the result of a loop that would otherwise have to mutate bindings declared in the outer scope.
@@ -805,6 +877,165 @@ let frequency: Double = (k.min ... k.max).reduce(into: 0) {
     let frequency: Double = Double.init(count) / Double.init(samples)
     $0 = max($0, frequency)
 }
+```
+
+
+### String processing
+
+Most Swift code in the wild processes strings by counting characters, which is the main reason this section exists. Counting is the habit to unlearn: an index should come from a search, a standard library method, or a regex match. An offset counted from the length of a literal is only acceptable when the characters it skips are checked against that literal right where it is used.
+
+
+#### Slice from indices you found or checked
+
+```swift
+// good — the index comes from a search, so it is correct for any input
+if  let dot: String.Index = name.lastIndex(of: ".") {
+    let stem: Substring = name[..<dot]
+}
+
+// bad — `-6` is the length of “.swift”, counted by hand; it is wrong for any other extension,
+// and nothing ties it to the literal it was counted from
+let stem: Substring = name[..<name.index(name.endIndex, offsetBy: -6)]
+```
+
+The ban covers every disguise of the same arithmetic, including `offsetBy: "foo".count`, `dropFirst(14)` and `prefix(2)`, unless the skipped characters are checked on the spot, as the `offsetBy: 3` below is.
+
+Consuming prefixes and suffixes is usually not the best way to slice a string. Lots of trimming-heavy code becomes significantly cleaner when refactored into index-based alternatives.
+
+```swift
+// good — error handling comes out naturally with the colon index on hand
+if  let colon: String.Index = uri.firstIndex(of: ":") {
+    guard uri[..<colon] == "https" else {
+        throw UnsupportedLink.scheme(uri[..<colon])
+    }
+
+    // the constant `3` is okay here, because that refers to a fixed-width delimiter `://`
+    guard
+    let domain: String.Index = uri.index(colon, offsetBy: 3, limitedBy: uri.endIndex),
+    // we could have elided an always-true check by taking the `index(after:)` of the colon,
+    // at the cost of an additional variable binding. if the code cares about the position
+    // immediately after the colon, that might be worth it
+    uri[colon ..< domain] == "://" else {
+        throw UnsupportedLink.malformed(uri)
+    }
+}
+
+// bad — if you then drop the prefix, you have to count again.
+// if the delimiter is a literal, count it once (in the guard)
+if  uri.starts(with: "https://") {
+    let domain: Substring = uri.dropFirst(8)
+}
+```
+
+The good example above is longer than the bad one, which is why people are often tempted to write the bad one instead. But the good one is clearer, potentially faster, and gives you error handling for free.
+
+
+In situations where a prefix is tested for, but never used, prefer `starts(with:)` over `hasPrefix(_:)`. The standard library has no `ends(with:)`, so `hasSuffix(_:)` remains the way to test for a suffix. These are relatively rare situations, since often if you are checking whether a string starts or ends with something, you also want to use that slice.
+
+
+#### Test single characters with patterns
+
+```swift
+// good — destructures the optional, as described under “Destructuring optionals”
+if  case "."? = name.first {}
+
+// bad — a string comparison standing in for a character test
+if  name.hasPrefix(".") {}
+```
+
+
+#### Use `Character` properties instead of listing characters
+
+A hand-written list of characters is almost always incomplete. Unicode has more whitespace than space, tab and carriage return.
+
+```swift
+// good
+let trimmed: Substring = line.drop(while: \.isWhitespace)
+
+// bad — misses U+000B, U+00A0, U+2028, and many more
+let trimmed: Substring = line.drop { $0 == " " || $0 == "\t" || $0 == "\r" }
+```
+
+#### Use hex literals for ASCII values
+
+Avoid using Unicode properties when the property is wider than what you mean. For example, `isWholeNumber` accepts non-ASCII digits such as ‘٣’. If a pattern only applies to ASCII characters, drop down to `utf8` views and match on integer literals.
+
+Write ASCII values in hex, never decimal. When writing ASCII values, always include a comment nearby identifying the characters they represent.
+
+```swift
+// good
+let id: String.Index? = line.utf8.firstIndex {
+    // '0' ... '9'
+    0x30 ... 0x39 ~= $0 ||
+    // 'a' ... 'f'
+    0x61 ... 0x66 ~= $0 ||
+    // 'A' ... 'F'
+    0x41 ... 0x46 ~= $0
+}
+
+// bad — `isHexDigit` accepts fullwidth compatibility forms, which may not be spec-compliant
+let id: String.Index? = line.firstIndex(where: \.isHexDigit)
+```
+
+Drop down to the UTF-8 level only when the domain calls for it, or in performance-critical contexts. In most situations, performing the equivalent operations on the default `Character` view (such as searching for a delimiter) is fine, and more readable.
+
+
+#### Regular expressions
+
+Use a `Regex` to match a short string against a grammar once, such as a file name or a version string. The regex states the grammar in one place, while hand-written parsing restates it as control flow that has to be read line by line to recover the format.
+
+```swift
+// good — the grammar is visible, and the capture is the version
+let manifest: Regex<(Substring, Substring)> = /Package@swift-(\d+(?:\.\d+){0,2})\.swift/
+if  let match: Regex<(Substring, Substring)>.Match = name.wholeMatch(of: manifest) {
+    let version: Substring = match.1
+}
+
+// bad — the same grammar, rebuilt from offsets, `split` and digit checks
+guard
+name.hasPrefix("Package@swift-"),
+name.hasSuffix(".swift") else {
+    return false
+}
+
+let start: String.Index = name.index(name.startIndex, offsetBy: 14)
+let end: String.Index = name.index(name.endIndex, offsetBy: -6)
+let version: Substring = name[start ..< end]
+let parts: [Substring] = version.split(separator: ".", omittingEmptySubsequences: false)
+```
+
+#### Pipelines and slicing loops
+
+In hot paths, such as code that runs once per token or once per line of a large file, prefer a slicing loop. Avoid both regexes and chains of allocating collection operations there, because each stage of `split`, `map` and `joined` allocates an intermediate buffer.
+
+```swift
+// good — no intermediate arrays; every index comes from a search
+var scope: String = ""
+var remainder: Substring = raw
+while let dot: String.Index = remainder.firstIndex(of: ".") {
+    scope += Self.unencase(remainder[..<dot])
+    scope += "."
+    remainder = remainder[remainder.index(after: dot)...]
+}
+scope += Self.unencase(remainder)
+
+// bad in a hot path — allocates an array of `Substring`, an array of `String`, and the result
+let scope: String = raw.split(separator: ".").map { Self.unencase($0) }.joined(separator: ".")
+```
+
+Outside hot paths, pipelines are fine, but can sometimes be a code smell that suggests an expression is “doing too much” and could be broken down. When pipelines do appear, consider if a `lazy` view might eliminate intermediate buffers. (`lazy` helps `map`, `filter` and `joined`, but `split` always returns an array.)
+
+
+#### Interpolate instead of calling `description`
+
+A `description` property witnesses `CustomStringConvertible`; it is not a conversion API. Interpolate the value instead.
+
+```swift
+// good
+let target: String = "\(primaryType)"
+
+// bad
+let target: String = primaryType.description
 ```
 
 
@@ -918,6 +1149,25 @@ let error: ParsingError = try #require(throws: ParsingError.self) {
 ```
 
 Use `#expect(throws:)` only when the error itself is not inspected, which is sometimes the case when one test makes several independent throw checks that should all be reported.
+
+
+## Preparing work for review
+
+The rules in this guide are only useful if you remember them while you write. Don’t just read this guide at the start of a session and then fall back on the patterns that dominate public Swift code as the session progresses.
+
+### Style is everyone’s responsibility
+
+A context compaction keeps the instruction to follow this guide, but drops its rules. Because people tend to mimic the patterns in the code around the code they are editing, unidiomatic code tends to beget more unidiomatic code.
+
+So before each commit, re-read the sections of this guide that the commit’s diff touches, and review that diff against them as a style reviewer would. A commit is small enough to check this way; a whole branch at the end of the work is not. Re-read the sections after every compaction, too.
+
+### Keep pull request descriptions up to date
+
+Before you ask for review, or for another round, update the pull request description, so it describes the code as it now is, rather than how the first version worked.
+
+### Address the patterns called out by review comments, not just the comments themselves
+
+Treat each review comment as one example of a pattern, not as a single line to fix. Before you reply, search the whole branch for other instances of the same pattern, fix all of them, and say how many there were. If the pattern isn’t covered by this guide yet, say so, so that it can be added. If you keep persistent notes, record the correction as a rule you can apply next time, not as a note about this one pull request.
 
 
 ## Reviewing branches

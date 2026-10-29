@@ -3,4 +3,10 @@
 set -euo pipefail
 set -x
 
-swift test -c release
+swift build -c release --build-tests
+swift test -c release --skip-build
+
+dollup="$(swift build -c release --show-bin-path)/dollup"
+"$dollup" format Package.swift Sources Tests
+git diff --exit-code
+"$dollup" check Sources Tests
