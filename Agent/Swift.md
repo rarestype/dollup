@@ -1097,7 +1097,7 @@ Use `#expect(throws:)` only when the error itself is not inspected, which is som
 
 The rules in this guide are only useful if you remember them while you write. Agents in particular tend to read this guide at the start of a session, and then fall back on the patterns that dominate public Swift code as the session goes on. A context compaction keeps the instruction to follow this guide, but drops its rules.
 
-So before you push a branch for review, and again before you ask for another round, re-read the sections of this guide that your diff touches, and review your own diff against them as a style reviewer would. Re-read them after every compaction, too. Then update the pull request description, so it describes the code as it now is, rather than how the first version worked.
+So before each commit, re-read the sections of this guide that the commit’s diff touches, and review that diff against them as a style reviewer would. A commit is small enough to check this way; a whole branch at the end of the work is not. Re-read the sections after every compaction, too. Before you ask for review, or for another round, update the pull request description, so it describes the code as it now is, rather than how the first version worked.
 
 ### Addressing review comments
 
