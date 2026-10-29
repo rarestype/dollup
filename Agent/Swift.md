@@ -882,10 +882,10 @@ let frequency: Double = (k.min ... k.max).reduce(into: 0) {
 
 ### String processing
 
-Most Swift code in the wild processes strings by counting characters, which is the main reason this section exists. Counting is the habit to unlearn: an index should come from a search, a standard library method, or a regex match, never from arithmetic on the length of a literal.
+Most Swift code in the wild processes strings by counting characters, which is the main reason this section exists. Counting is the habit to unlearn: an index should come from a search, a standard library method, or a regex match. An offset counted from the length of a literal is only acceptable when the characters it skips are checked against that literal right where it is used.
 
 
-#### Slice from indices you found, never from indices you counted
+#### Slice from indices you found or checked
 
 ```swift
 // good — the index comes from a search, so it is correct for any input
@@ -898,11 +898,11 @@ if  let dot: String.Index = name.lastIndex(of: ".") {
 let stem: Substring = name[..<name.index(name.endIndex, offsetBy: -6)]
 ```
 
-The ban covers every disguise of the same arithmetic, including `offsetBy: "foo".count`, `dropFirst(14)` and `prefix(2)`.
+The ban covers every disguise of the same arithmetic, including `offsetBy: "foo".count`, `dropFirst(14)` and `prefix(2)`, unless the skipped characters are checked on the spot, as the `offsetBy: 3` below is.
 
 Consuming prefixes and suffixes is usually not the best way to slice a string. Lots of trimming-heavy code becomes significantly cleaner when refactored into index-based alternatives.
 
-```
+```swift
 // good — error handling comes out naturally with the colon index on hand
 if  let colon: String.Index = uri.firstIndex(of: ":") {
     guard uri[..<colon] == "https" else {
@@ -958,15 +958,15 @@ let trimmed: Substring = line.drop { $0 == " " || $0 == "\t" || $0 == "\r" }
 
 #### Use hex literals for ASCII values
 
-Avoid using unicode properties when the property is wider than what you mean. For example, `isWholeNumber` accepts non-ASCII digits such as ‘٣’. if a pattern only applies to ASCII characters, drop down to `utf8` views and match on integer literals.
+Avoid using Unicode properties when the property is wider than what you mean. For example, `isWholeNumber` accepts non-ASCII digits such as ‘٣’. If a pattern only applies to ASCII characters, drop down to `utf8` views and match on integer literals.
 
 Write ASCII values in hex, never decimal. When writing ASCII values, always include a comment nearby identifying the characters they represent.
 
 ```swift
 // good
 let id: String.Index? = line.utf8.firstIndex {
-    // '1' ... '9'
-    0x31 ... 0x39 ~= $0 ||
+    // '0' ... '9'
+    0x30 ... 0x39 ~= $0 ||
     // 'a' ... 'f'
     0x61 ... 0x66 ~= $0 ||
     // 'A' ... 'F'
@@ -1023,7 +1023,7 @@ scope += Self.unencase(remainder)
 let scope: String = raw.split(separator: ".").map { Self.unencase($0) }.joined(separator: ".")
 ```
 
-Outside hot paths, pipelines are fine, but can sometimes be a code smell that suggests an expression is “doing too much” and could be broken down. When pipelines do appear, consider if a `lazy` view might eliminate intermediate buffers.
+Outside hot paths, pipelines are fine, but can sometimes be a code smell that suggests an expression is “doing too much” and could be broken down. When pipelines do appear, consider if a `lazy` view might eliminate intermediate buffers. (`lazy` helps `map`, `filter` and `joined`, but `split` always returns an array.)
 
 
 #### Interpolate instead of calling `description`
@@ -1161,7 +1161,7 @@ A context compaction keeps the instruction to follow this guide, but drops its r
 
 So before each commit, re-read the sections of this guide that the commit’s diff touches, and review that diff against them as a style reviewer would. A commit is small enough to check this way; a whole branch at the end of the work is not. Re-read the sections after every compaction, too.
 
-### Keep pull request descriptions up-to-date
+### Keep pull request descriptions up to date
 
 Before you ask for review, or for another round, update the pull request description, so it describes the code as it now is, rather than how the first version worked.
 
