@@ -1,4 +1,4 @@
-import SystemPackage
+import SystemIO
 
 public struct Diagnostics {
     public let file: FilePath?
@@ -11,6 +11,8 @@ public struct Diagnostics {
         self.error = error
     }
 }
+
+extension Diagnostics: Sendable {}
 
 extension Diagnostics: CustomStringConvertible {
     public var description: String {

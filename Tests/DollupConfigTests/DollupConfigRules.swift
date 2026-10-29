@@ -1,29 +1,25 @@
 import DollupConfig
-import SystemPackage
+import SystemIO
 import Testing
 
-@Suite struct DollupConfigTests {
+@Suite struct DollupConfigRules {
     @Test static func CheckFiltration() throws {
-        #expect(try DefaultConfig.check(file: FilePath.init("Package.swift")))
-        #expect(try DefaultConfig.check(file: FilePath.init("./Package.swift")))
-        #expect(try DefaultConfig.check(file: FilePath.init("/swift/project/Package.swift")))
-        #expect(try DefaultConfig.check(file: FilePath.init("Sources/Target/Foo.swift")))
+        #expect(try DefaultConfig.check(file: "Package.swift"))
+        #expect(try DefaultConfig.check(file: "./Package.swift"))
+        #expect(try DefaultConfig.check(file: "/swift/project/Package.swift"))
+        #expect(try DefaultConfig.check(file: "Sources/Target/Foo.swift"))
     }
 
     @Test static func CheckWitness() throws {
-        let validName: FilePath.Component = FilePath.Component.init("Foo.swift")!
-        let validSource: String = """
-        public struct Foo {}
-        """
+        let validName: FilePath.Component = "Foo.swift"
+        let validSource: String = "public struct Foo {}"
         let validResult: Diagnostics? = try DefaultConfig.check(
             name: validName,
             text: validSource
         )
         #expect(validResult == nil)
 
-        let invalidSource: String = """
-        public struct Bar {}
-        """
+        let invalidSource: String = "public struct Bar {}"
         let invalidResult: Diagnostics? = try DefaultConfig.check(
             name: validName,
             text: invalidSource
@@ -32,7 +28,7 @@ import Testing
         #expect(invalidResult?.error == true)
         #expect(invalidResult?.message.contains("type 'Bar' does not match filename") == true)
 
-        let manifestName: FilePath.Component = FilePath.Component.init("Package.swift")!
+        let manifestName: FilePath.Component = "Package.swift"
         let manifestSource: String = """
         // swift-tools-version:6.2
         import PackageDescription
@@ -62,7 +58,7 @@ import Testing
     }
 
     @Test static func DiagnosticsDescription() {
-        let path: FilePath = FilePath.init("Sources/Target/Foo.swift")
+        let path: FilePath = "Sources/Target/Foo.swift"
         let withPath: Diagnostics = .init(
             file: path,
             message: "sample error"
@@ -71,7 +67,7 @@ import Testing
         #expect(withPath.description.contains("sample error"))
 
         let withoutPath: Diagnostics = .init(message: "sample error")
-        #expect(withoutPath.description.hasPrefix("error:\nsample error"))
+        #expect(withoutPath.description.starts(with: "error:\nsample error"))
 
         let warningWithPath: Diagnostics = .init(
             file: path,

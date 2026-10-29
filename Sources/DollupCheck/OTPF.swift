@@ -38,38 +38,16 @@ public enum OTPF {
 }
 
 extension OTPF {
-    public static func manifest(name: String) -> Bool {
-        let filename: Substring
-        if  let slash: String.Index = name.lastIndex(of: "/") {
-            let next: String.Index = name.index(after: slash)
-            filename = name[next...]
-        } else {
-            filename = name[...]
-        }
-
-        if  filename == "Package.swift" {
+    @_spi(testable) public static func manifest(name: String) -> Bool {
+        if  name == "Package.swift" {
             return true
         }
-        guard filename.hasPrefix("Package@swift-"),
-              filename.hasSuffix(".swift") else {
-            return false
+        let pattern: Regex<AnyRegexOutput> = try! .init(
+            #"Package@swift-(\d+)(?:\.(\d+))?(?:\.(\d+))?\.swift"#
+        )
+        if  case _? = try? pattern.wholeMatch(in: name) {
+            return true
         }
-        let versionStart: String.Index = filename.index(filename.startIndex, offsetBy: 14)
-        let versionEnd: String.Index = filename.index(filename.endIndex, offsetBy: -6)
-        guard versionStart < versionEnd else {
-            return false
-        }
-        let version: Substring = filename[versionStart ..< versionEnd]
-        let parts: [Substring] = version.split(separator: ".", omittingEmptySubsequences: false)
-        guard parts.count == 2,
-              let major: Substring = parts.first,
-              let minor: Substring = parts.last,
-              !major.isEmpty,
-              !minor.isEmpty,
-              major.allSatisfy({ $0 >= "0" && $0 <= "9" }),
-              minor.allSatisfy({ $0 >= "0" && $0 <= "9" }) else {
-            return false
-        }
-        return true
+        return false
     }
 }

@@ -11,30 +11,30 @@ extension OTPF.FileClass: Hashable {}
 
 extension OTPF.FileClass {
     public init?(name: String) {
-        guard name.hasSuffix(".swift") else {
+        guard
+        let dot: String.Index = name.lastIndex(of: "."),
+        name[dot...] == ".swift" else {
             return nil
         }
 
-        let filename: Substring
-        if  let slash: String.Index = name.lastIndex(of: "/") {
-            let next: String.Index = name.index(after: slash)
-            filename = name[next...]
-        } else {
-            filename = name[...]
-        }
-
-        let stemEnd: String.Index = filename.index(filename.endIndex, offsetBy: -6)
-        let stem: Substring = filename[..<stemEnd]
-
+        let stem: Substring = name[..<dot]
         if  let special: Special = Special.init(rawValue: String.init(stem)) {
             self = .special(special)
-        } else if stem.hasSuffix(" (ext)") {
-            let typeEnd: String.Index = stem.index(stem.endIndex, offsetBy: -6)
-            self = .ext(.init(stem[..<typeEnd]))
-        } else if stem.hasSuffix(" (gen)") {
-            let typeEnd: String.Index = stem.index(stem.endIndex, offsetBy: -6)
-            self = .gen(.init(stem[..<typeEnd]))
-        } else if OTPF.manifest(name: String.init(filename)) {
+            return
+        }
+        if  let space: String.Index = stem.lastIndex(of: " ") {
+            switch stem[space...] {
+            case " (ext)":
+                self = .ext(.init(stem[..<space]))
+                return
+            case " (gen)":
+                self = .gen(.init(stem[..<space]))
+                return
+            default:
+                break
+            }
+        }
+        if  OTPF.manifest(name: name) {
             self = .layout("Package")
         } else {
             self = .layout(.init(stem))

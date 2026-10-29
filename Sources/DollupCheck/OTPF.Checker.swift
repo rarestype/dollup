@@ -32,29 +32,25 @@ extension OTPF.Checker {
             return self.diagnostics
         }
 
-        if  OTPF.manifest(name: self.name) {
-            let toolsVersion: Bool = self.toolsVersion
-            if  let packageDeclaration: Syntax = self.packageDeclaration {
-                if  toolsVersion {
-                    self.diagnose(
-                        node: packageDeclaration,
-                        message: """
-                        file '\(
-                            self.name
-                        )' declares type ‘Package’ but looks like a package manifest (starts \
-                        with “// swift-tools-version:”), this is probably unintentional
-                        """,
-                        severity: .warning
-                    )
-                }
-            } else if toolsVersion {
+        if  OTPF.manifest(name: self.name),
+            case _? = self.toolsVersion {
+            guard
+            let declaration: Syntax = self.packageDeclaration else {
                 return self.diagnostics
             }
+            self.diagnose(
+                node: declaration,
+                message: """
+                declares type ‘Package’ but looks like a package manifest (starts \
+                with “// swift-tools-version:”), this is probably unintentional
+                """,
+                severity: .warning
+            )
         }
 
         switch fileClass {
         case .special(let special):
-            self.checkSpecial(special)
+            self.check(special: special)
 
         case .ext(let primaryType), .gen(let primaryType):
             self.checkGlobalRestrictions()
@@ -68,7 +64,7 @@ extension OTPF.Checker {
         return self.diagnostics
     }
 
-    private mutating func checkSpecial(_ special: OTPF.FileClass.Special) {
+    private mutating func check(special: OTPF.FileClass.Special) {
         switch special {
         case .anchor:
             if  !self.tree.statements.isEmpty {
@@ -689,28 +685,26 @@ extension OTPF.Checker {
         self.diagnostics.append(diagnostic)
     }
 
-    private var toolsVersion: Bool {
-        let text: String = self.tree.description
-        var index: String.Index = text.startIndex
-        while index < text.endIndex {
-            let lineEnd: String.Index = text[index...].firstIndex(of: "\n") ?? text.endIndex
-            let line: Substring = text[index ..< lineEnd]
-            let trimmed: Substring = line.drop(while: { $0 == " " || $0 == "\t" || $0 == "\r" })
-            if  !trimmed.isEmpty {
-                guard trimmed.hasPrefix("//") else {
-                    return false
-                }
-                let commentBody: Substring = trimmed.dropFirst(2).drop(
-                    while: { $0 == " " || $0 == "\t" }
+    private var toolsVersion: Substring? {
+        for piece: TriviaPiece in self.tree.leadingTrivia.pieces {
+            switch piece {
+            case .newlines, .carriageReturnLineFeeds, .spaces, .tabs:
+                continue
+            case .lineComment(let text):
+                let pattern: Regex<AnyRegexOutput> = try! .init(
+                    #"^//\s*swift-tools-version:\s*(\S+)"#
                 )
-                return commentBody.hasPrefix("swift-tools-version:")
+                guard
+                let match: Regex<AnyRegexOutput>.Match = try? pattern.firstMatch(in: text),
+                let version: Substring = match[1].substring else {
+                    return nil
+                }
+                return version
+            default:
+                return nil
             }
-            if  lineEnd == text.endIndex {
-                break
-            }
-            index = text.index(after: lineEnd)
         }
-        return false
+        return nil
     }
 
     private var packageDeclaration: Syntax? {
@@ -718,32 +712,14 @@ extension OTPF.Checker {
             guard case .decl(let declaration) = statement.item else {
                 continue
             }
-            if  declaration.primaryType?.last == "Package" {
+            if  case "Package"? = declaration.primaryType?.last {
                 return .init(declaration)
             }
-            if  let typealiasDecl: TypeAliasDeclSyntax = declaration.as(
+            if  let declaration: TypeAliasDeclSyntax = declaration.as(
                     TypeAliasDeclSyntax.self
                 ),
-                typealiasDecl.name.text == "Package" {
-                return .init(typealiasDecl)
-            }
-            if  let extensionDecl: ExtensionDeclSyntax = declaration.as(
-                    ExtensionDeclSyntax.self
-                ) {
-                for member: MemberBlockItemSyntax in extensionDecl
-                    .memberBlock
-                    .members
-                    .unrolled {
-                    if  member.decl.primaryType?.last == "Package" {
-                        return .init(member.decl)
-                    }
-                    if  let typealiasDecl: TypeAliasDeclSyntax = member.decl.as(
-                            TypeAliasDeclSyntax.self
-                        ),
-                        typealiasDecl.name.text == "Package" {
-                        return .init(typealiasDecl)
-                    }
-                }
+                    declaration.name.text == "Package" {
+                return .init(declaration)
             }
         }
         return nil

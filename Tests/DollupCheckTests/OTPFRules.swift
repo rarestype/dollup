@@ -1,4 +1,4 @@
-import DollupCheck
+@_spi(testable) import DollupCheck
 import SwiftDiagnostics
 import Testing
 
@@ -637,16 +637,18 @@ import Testing
 
     @Test static func PackageManifestDetection() {
         #expect(OTPF.manifest(name: "Package.swift"))
-        #expect(OTPF.manifest(name: "./Package.swift"))
-        #expect(OTPF.manifest(name: "Sources/X/Package.swift"))
-        #expect(OTPF.manifest(name: "/swift/project/Package.swift"))
+        #expect(OTPF.manifest(name: "Package@swift-5.swift"))
+        #expect(OTPF.manifest(name: "Package@swift-6.swift"))
         #expect(OTPF.manifest(name: "Package@swift-5.9.swift"))
         #expect(OTPF.manifest(name: "Package@swift-6.2.swift"))
         #expect(OTPF.manifest(name: "Package@swift-10.15.swift"))
+        #expect(OTPF.manifest(name: "Package@swift-5.9.1.swift"))
+        #expect(OTPF.manifest(name: "Package@swift-5.10.1.swift"))
+        #expect(OTPF.manifest(name: "Package@swift-6.2.0.swift"))
 
-        #expect(!OTPF.manifest(name: "Package@swift-5.swift"))
-        #expect(!OTPF.manifest(name: "Package@swift-5.9.1.swift"))
+        #expect(!OTPF.manifest(name: "Package@swift-.swift"))
         #expect(!OTPF.manifest(name: "Package@swift-foo.swift"))
+        #expect(!OTPF.manifest(name: "Package@swift-5.9.1.2.swift"))
         #expect(!OTPF.manifest(name: "Foo.swift"))
         #expect(!OTPF.manifest(name: "Package.json"))
     }
@@ -706,16 +708,15 @@ import Testing
         """
         let diagnostics: [Diagnostic] = OTPF.check(
             source: source,
-            in: "Sources/X/Package.swift"
+            in: "Package.swift"
         )
         #expect(diagnostics.count == 1)
         #expect(diagnostics.first?.diagMessage.severity == .warning)
         #expect(
             diagnostics.first?.message.contains(
                 """
-                file 'Sources/X/Package.swift' declares type ‘Package’ but looks like a \
-                package manifest (starts with “// swift-tools-version:”), this is probably \
-                unintentional
+                declares type ‘Package’ but looks like a package manifest (starts \
+                with “// swift-tools-version:”), this is probably unintentional
                 """
             ) == true
         )
@@ -743,7 +744,7 @@ import Testing
         )
     }
 
-    @Test static func PackageSwiftInTargetIsLayoutFile() {
+    @Test static func PackageSwiftLayoutFileWithoutToolsVersion() {
         let targetSource: String = """
         struct Package {}
         struct Other {}
@@ -760,9 +761,7 @@ import Testing
             ) == true
         )
 
-        let validSource: String = """
-        struct Package {}
-        """
+        let validSource: String = "struct Package {}"
         let validDiagnostics: [Diagnostic] = OTPF.check(
             source: validSource,
             in: "Package.swift"

@@ -80,11 +80,7 @@ extension DollupConfiguration {
                 try self.run(on: path)
             }
         } directory: { _, component in
-            if  component.string.hasPrefix(".") {
-                nil
-            } else {
-                .descend
-            }
+            Self.descend(into: component)
         }
     }
 
@@ -98,6 +94,16 @@ extension DollupConfiguration {
 }
 
 extension DollupConfiguration {
+    private static func descend(
+        into component: FilePath.Component
+    ) -> FilePath.DirectoryRecursion? {
+        if  case "."? = component.string.first {
+            nil
+        } else {
+            .descend
+        }
+    }
+
     public static func check(in path: FilePath) throws -> [Diagnostics] {
         guard
         let status: FileStatus = try path.status else {
@@ -130,22 +136,20 @@ extension DollupConfiguration {
                 }
             }
         } directory: { _, component in
-            if  component.string.hasPrefix(".") {
-                nil
-            } else {
-                .descend
-            }
+            Self.descend(into: component)
         }
         return results
     }
 
     public static func check(on file: FilePath) throws -> Diagnostics? {
-        guard try self.check(file: file),
+        guard
+        try self.check(file: file),
         let component: FilePath.Component = file.components.last else {
             return nil
         }
         let text: String = try file.read()
-        guard let diagnostics: Diagnostics = try self.check(name: component, text: text) else {
+        guard
+        let diagnostics: Diagnostics = try self.check(name: component, text: text) else {
             return nil
         }
         return Diagnostics.init(
