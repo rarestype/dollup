@@ -888,7 +888,7 @@ if  let dot: String.Index = name.lastIndex(of: ".") {
 let stem: Substring = name[..<name.index(name.endIndex, offsetBy: -6)]
 ```
 
-The ban covers every disguise of the same arithmetic, including `offsetBy: "Package@swift-".count`, `dropFirst(14)` and `prefix(2)`. Test for a prefix with `starts(with:)`, and remove one you know is there with `trimmingPrefix(_:)`.
+The ban covers every disguise of the same arithmetic, including `offsetBy: "Package@swift-".count`, `dropFirst(14)` and `prefix(2)`. Test for a prefix with `starts(with:)`, never `hasPrefix(_:)`, and remove one you know is there with `trimmingPrefix(_:)`. (The standard library has no `ends(with:)`, so `hasSuffix(_:)` remains the way to test for a suffix.)
 
 ```swift
 // good
