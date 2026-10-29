@@ -335,6 +335,33 @@ As a rule, names should always be spelled with the minimal amount of qualificati
 Module qualification is discouraged in idiomatic Swift code.
 
 
+### Where helpers go
+
+A helper that only inspects its argument, to answer a question about that argument, belongs to the argument’s type, not to the type that happens to call it. Make it a member in an extension on the argument’s type (in that type’s layout file, or its extension file if the type comes from another module). Otherwise, coordinator types such as checkers, visitors and formatters turn into dumping grounds for functions that have nothing to do with their state.
+
+```swift
+// good — the question is about the typealias, so the typealias answers it
+extension TypeAliasDeclSyntax {
+    func deprecationShim(for expected: String) -> Bool {}
+}
+
+// bad — `Checker` holds the function, but nothing in it uses the checker
+extension Checker {
+    func deprecationShim(_ alias: TypeAliasDeclSyntax, for expected: String) -> Bool {}
+}
+```
+
+A helper that does belong to a coordinator’s domain, but never reads or writes `self`, should be a `static func`. That way, the signature shows that calling it can’t depend on, or change, the state of a pass in progress. Keep instance methods for the code that reads or mutates instance state, so that a reader can assume every instance method does.
+
+```swift
+// good — classifying an enum needs nothing from the checker
+private static func exemptKeynum(_ enumDeclaration: EnumDeclSyntax) -> Bool {}
+
+// bad — looks like it depends on the checker’s state, but doesn’t
+private func exemptKeynum(_ enumDeclaration: EnumDeclSyntax) -> Bool {}
+```
+
+
 ## Writing code
 
 In general, we believe in the principle that code is edited far more often than it is written, and that code is read far more often than it is edited. So we prioritize ease of reading, editing, and writing, in that order. In particular, navigating counts as reading, so we always prioritize keeping code navigable over simply making code fast to write or generate.
@@ -792,6 +819,41 @@ if  case magic = y {}
 Rigorous adherence to `case`-based destructuring and pattern matching will help limit the number of `Equatable` conformances that must be virally propogated everywhere, which helps keep APIs lean and free of unnecessary conformances.
 
 
+#### Comparing several fields
+
+To compare several fields at once, compare tuples instead of chaining `==` with `&&`. The tuple lines the fields up, so a missing or mismatched field is visible at a glance.
+
+```swift
+// good
+static func == (a: Self, b: Self) -> Bool { (a.scope, a.last) == (b.scope, b.last) }
+
+// bad
+static func == (a: Self, b: Self) -> Bool { a.scope == b.scope && a.last == b.last }
+```
+
+
+### Conditions
+
+Separate the conditions of an `if`, `guard` or `while` with commas, not `&&`. Each comma-separated condition can be a binding or a pattern, gets its own line, and can be reordered or deleted without rebalancing an expression. Likewise, merge an `if` nested directly inside another `if` (with no `else` on either) into a single statement.
+
+```swift
+// good
+if  arguments.contains("deprecated"),
+    self.name != "main.swift" {
+    return true
+}
+
+// bad — one condition is buried in an expression, and the other in a nested `if`
+if  arguments.contains("deprecated") {
+    if  !self.name.isEmpty && self.name != "main.swift" {
+        return true
+    }
+}
+```
+
+`&&` is still correct inside an expression whose value you store or return, such as `let ready: Bool = a && b`.
+
+
 ### Functional patterns
 
 The `reduce(into:_:)` method is your friend, use it to return the result of a loop that would otherwise have to mutate bindings declared in the outer scope.
@@ -805,6 +867,117 @@ let frequency: Double = (k.min ... k.max).reduce(into: 0) {
     let frequency: Double = Double.init(count) / Double.init(samples)
     $0 = max($0, frequency)
 }
+```
+
+
+### Text processing
+
+Most Swift code in the wild processes strings by counting characters, which is the main reason this section exists. Counting is the habit to unlearn: an index should come from a search, a standard library method, or a regex match, never from arithmetic on the length of a literal.
+
+
+#### Slice from indices you found, never from indices you counted
+
+```swift
+// good — the index comes from a search, so it is correct for any input
+if  let dot: String.Index = name.lastIndex(of: ".") {
+    let stem: Substring = name[..<dot]
+}
+
+// bad — `-6` is the length of “.swift”, counted by hand; it is wrong for any other extension,
+// and nothing ties it to the literal it was counted from
+let stem: Substring = name[..<name.index(name.endIndex, offsetBy: -6)]
+```
+
+The ban covers every disguise of the same arithmetic, including `offsetBy: "Package@swift-".count`, `dropFirst(14)` and `prefix(2)`. Test for a prefix with `starts(with:)`, and remove one you know is there with `trimmingPrefix(_:)`.
+
+```swift
+// good
+if  line.starts(with: "//") {
+    let body: Substring = line.trimmingPrefix("//")
+}
+
+// bad
+if  line.hasPrefix("//") {
+    let body: Substring = line.dropFirst(2)
+}
+```
+
+
+#### Test single characters with patterns
+
+```swift
+// good — destructures the optional, as described under “Destructuring optionals”
+if  case "."? = name.first {}
+
+// bad — a string comparison standing in for a character test
+if  name.hasPrefix(".") {}
+```
+
+
+#### Use `Character` properties instead of listing characters
+
+A hand-written list of characters is almost always incomplete. Unicode has more whitespace than space, tab and carriage return.
+
+```swift
+// good
+let trimmed: Substring = line.drop(while: \.isWhitespace)
+
+// bad — misses U+000B, U+00A0, U+2028, and many more
+let trimmed: Substring = line.drop { $0 == " " || $0 == "\t" || $0 == "\r" }
+```
+
+Be deliberate when the property is wider than what you mean. `isWholeNumber` accepts non-ASCII digits such as “٣”; if a format only allows ASCII digits, a regex with `.asciiOnlyDigits()`, or `isASCII` together with `isWholeNumber`, says so.
+
+
+#### Regular expressions and slicing loops
+
+Use a `Regex` to match a short string against a grammar once, such as a file name or a version string. The regex states the grammar in one place, while hand-written parsing restates it as control flow that has to be read line by line to recover the format.
+
+```swift
+// good — the grammar is visible, and the capture is the version
+let manifest: Regex<(Substring, Substring)> = /Package@swift-(\d+(?:\.\d+){0,2})\.swift/
+if  let match: Regex<(Substring, Substring)>.Match = name.wholeMatch(of: manifest) {
+    let version: Substring = match.1
+}
+
+// bad — the same grammar, rebuilt from offsets, `split` and digit checks
+guard name.hasPrefix("Package@swift-"), name.hasSuffix(".swift") else { return false }
+let start: String.Index = name.index(name.startIndex, offsetBy: 14)
+let end: String.Index = name.index(name.endIndex, offsetBy: -6)
+let version: Substring = name[start ..< end]
+let parts: [Substring] = version.split(separator: ".", omittingEmptySubsequences: false)
+```
+
+In hot paths, such as code that runs once per token or once per line of a large file, prefer a slicing loop. Avoid both regexes and chains of allocating collection operations there, because each stage of `split`, `map` and `joined` allocates an intermediate buffer.
+
+```swift
+// good — no intermediate arrays; every index comes from a search
+var scope: String = ""
+var remainder: Substring = raw
+while let dot: String.Index = remainder.firstIndex(of: ".") {
+    scope += Self.unencase(remainder[..<dot])
+    scope += "."
+    remainder = remainder[remainder.index(after: dot)...]
+}
+scope += Self.unencase(remainder)
+
+// bad in a hot path — allocates an array of `Substring`, an array of `String`, and the result
+let scope: String = raw.split(separator: ".").map { Self.unencase($0) }.joined(separator: ".")
+```
+
+Outside hot paths, the pipeline is fine, and often clearer.
+
+
+#### Interpolate instead of calling `description`
+
+A `description` property witnesses `CustomStringConvertible`; it is not a conversion API. Interpolate the value instead.
+
+```swift
+// good
+let target: String = "\(primaryType)"
+
+// bad
+let target: String = primaryType.description
 ```
 
 
@@ -918,6 +1091,17 @@ let error: ParsingError = try #require(throws: ParsingError.self) {
 ```
 
 Use `#expect(throws:)` only when the error itself is not inspected, which is sometimes the case when one test makes several independent throw checks that should all be reported.
+
+
+## Preparing work for review
+
+The rules in this guide are only useful if you remember them while you write. Agents in particular tend to read this guide at the start of a session, and then fall back on the patterns that dominate public Swift code as the session goes on. A context compaction keeps the instruction to follow this guide, but drops its rules.
+
+So before you push a branch for review, and again before you ask for another round, re-read the sections of this guide that your diff touches, and review your own diff against them as a style reviewer would. Re-read them after every compaction, too. Then update the pull request description, so it describes the code as it now is, rather than how the first version worked.
+
+### Addressing review comments
+
+Treat each review comment as one example of a pattern, not as a single line to fix. Before you reply, search the whole branch for other instances of the same pattern, fix all of them, and say how many there were. If the pattern isn’t covered by this guide yet, say so, so that it can be added. If you keep persistent notes, record the correction as a rule you can apply next time, not as a note about this one pull request.
 
 
 ## Reviewing branches
