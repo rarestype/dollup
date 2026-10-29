@@ -1,5 +1,3 @@
-import SystemIO
-
 extension OTPF {
     public enum FileClass {
         case special(Special)
@@ -12,26 +10,32 @@ extension OTPF {
 extension OTPF.FileClass: Hashable {}
 
 extension OTPF.FileClass {
-    public init?(file: String, in path: FilePath? = nil) {
-        guard file.hasSuffix(".swift") else {
+    public init?(name: String) {
+        guard
+        let dot: String.Index = name.lastIndex(of: "."),
+        name[dot...] == ".swift" else {
             return nil
         }
 
-        let stemEnd: String.Index = file.index(file.endIndex, offsetBy: -6)
-        let stem: Substring = file[..<stemEnd]
-
+        let stem: Substring = name[..<dot]
         if  let special: Special = Special.init(rawValue: String.init(stem)) {
-            if  case .Package = special, let path, path.components.count > 1 {
-                self = .layout(.init(stem))
-                return
-            }
             self = .special(special)
-        } else if stem.hasSuffix(" (ext)") {
-            let typeEnd: String.Index = stem.index(stem.endIndex, offsetBy: -6)
-            self = .ext(.init(stem[..<typeEnd]))
-        } else if stem.hasSuffix(" (gen)") {
-            let typeEnd: String.Index = stem.index(stem.endIndex, offsetBy: -6)
-            self = .gen(.init(stem[..<typeEnd]))
+            return
+        }
+        if  let space: String.Index = stem.lastIndex(of: " ") {
+            switch stem[space...] {
+            case " (ext)":
+                self = .ext(.init(stem[..<space]))
+                return
+            case " (gen)":
+                self = .gen(.init(stem[..<space]))
+                return
+            default:
+                break
+            }
+        }
+        if  OTPF.manifest(name: name) {
+            self = .layout("Package")
         } else {
             self = .layout(.init(stem))
         }

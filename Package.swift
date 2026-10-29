@@ -48,7 +48,6 @@ let package = Package(
                 .product(name: "SwiftDiagnostics", package: "swift-syntax"),
                 .product(name: "SwiftParser", package: "swift-syntax"),
                 .product(name: "SwiftSyntax", package: "swift-syntax"),
-                .product(name: "SystemIO", package: "swift-io"),
             ]
         ),
         .target(
@@ -64,6 +63,12 @@ let package = Package(
             name: "DollupCheckTests",
             dependencies: [
                 .target(name: "DollupCheck"),
+            ]
+        ),
+        .testTarget(
+            name: "DollupConfigTests",
+            dependencies: [
+                .target(name: "DollupConfig"),
             ]
         ),
         .testTarget(

@@ -4,7 +4,6 @@ extension OTPF.FileClass {
         case exports
         case lexemes
         case operators
-        case Package
     }
 }
 

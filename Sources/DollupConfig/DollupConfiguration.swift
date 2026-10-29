@@ -6,10 +6,31 @@ public protocol DollupConfiguration {
     static func configure(file: FilePath?, settings: inout DollupSettings) throws
     static func filter(file: FilePath) throws -> Bool
     static func report(file: FilePath) throws
+
+    static func check(file: FilePath) throws -> Bool
+    static func check(name: FilePath.Component, text: String) throws -> Diagnostics?
 }
 extension DollupConfiguration {
     public static func filter(file _: FilePath) throws -> Bool { true }
     public static func report(file _: FilePath) throws {}
+
+    public static func check(file: FilePath) throws -> Bool {
+        try self.filter(file: file)
+    }
+
+    public static func check(
+        name: FilePath.Component,
+        text: String
+    ) throws -> Diagnostics? {
+        if  let (message, error): (String, Bool) = OTPF.diagnose(
+                source: text,
+                in: name.string
+            ) {
+            Diagnostics.init(message: message, error: error)
+        } else {
+            nil
+        }
+    }
 }
 extension DollupConfiguration {
     public static func format(
@@ -58,8 +79,8 @@ extension DollupConfiguration {
                 case "swift" = $1.extension {
                 try self.run(on: path)
             }
-        } directory: { _, _ in
-            .descend
+        } directory: { _, component in
+            Self.descend(into: component)
         }
     }
 
@@ -73,7 +94,17 @@ extension DollupConfiguration {
 }
 
 extension DollupConfiguration {
-    public static func check(in path: FilePath) throws -> [DollupCheck.Diagnostics] {
+    private static func descend(
+        into component: FilePath.Component
+    ) -> FilePath.DirectoryRecursion? {
+        if  case "."? = component.string.first {
+            nil
+        } else {
+            .descend
+        }
+    }
+
+    public static func check(in path: FilePath) throws -> [Diagnostics] {
         guard
         let status: FileStatus = try path.status else {
             throw """
@@ -82,7 +113,7 @@ extension DollupConfiguration {
         }
 
         if  status.is(.regular) {
-            if  let diagnostics: DollupCheck.Diagnostics = try self.check(on: path) {
+            if  let diagnostics: Diagnostics = try self.check(on: path) {
                 return [diagnostics]
             } else {
                 return []
@@ -95,27 +126,36 @@ extension DollupConfiguration {
             """ as DollupError
         }
 
-        var results: [DollupCheck.Diagnostics] = []
+        var results: [Diagnostics] = []
         try path.directory.walk {
             let path: FilePath = $0 / $1
             if  case true? = try path.status?.is(.regular),
                 case "swift" = $1.extension {
-                if  let diagnostics: DollupCheck.Diagnostics = try self.check(on: path) {
+                if  let diagnostics: Diagnostics = try self.check(on: path) {
                     results.append(diagnostics)
                 }
             }
-        } directory: { _, _ in
-            .descend
+        } directory: { _, component in
+            Self.descend(into: component)
         }
         return results
     }
 
-    public static func check(on file: FilePath) throws -> DollupCheck.Diagnostics? {
-        if  try self.filter(file: file) {
-            let source: String = try file.read()
-            return OTPF.diagnose(source: source, in: file)
-        } else {
+    public static func check(on file: FilePath) throws -> Diagnostics? {
+        guard
+        try self.check(file: file),
+        let component: FilePath.Component = file.components.last else {
             return nil
         }
+        let text: String = try file.read()
+        guard
+        let diagnostics: Diagnostics = try self.check(name: component, text: text) else {
+            return nil
+        }
+        return Diagnostics.init(
+            file: file,
+            message: diagnostics.message,
+            error: diagnostics.error
+        )
     }
 }

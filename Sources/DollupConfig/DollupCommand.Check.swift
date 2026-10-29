@@ -1,6 +1,5 @@
 import ArgumentParser
 import Dollup
-import DollupCheck
 import System_ArgumentParser
 import SystemIO
 
@@ -21,11 +20,11 @@ extension DollupCommand.Check: ParsableCommand {
         var failed: Bool = false
         for path: FilePath in self.paths {
             do {
-                let diagnostics: [DollupCheck.Diagnostics] = try Configuration.check(in: path)
-                if  !diagnostics.isEmpty {
-                    failed = true
-                    for diagnostic: DollupCheck.Diagnostics in diagnostics {
-                        print(diagnostic)
+                let diagnostics: [Diagnostics] = try Configuration.check(in: path)
+                for diagnostic: Diagnostics in diagnostics {
+                    print(diagnostic)
+                    if  diagnostic.error {
+                        failed = true
                     }
                 }
             } catch {
