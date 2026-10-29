@@ -340,25 +340,33 @@ Module qualification is discouraged in idiomatic Swift code.
 A helper that only inspects its argument, to answer a question about that argument, belongs to the argument’s type, not to the type that happens to call it. Make it a member in an extension on the argument’s type (in that type’s layout file, or its extension file if the type comes from another module). Otherwise, coordinator types such as checkers, visitors and formatters turn into dumping grounds for functions that have nothing to do with their state.
 
 ```swift
-// good — the question is about the typealias, so the typealias answers it
-extension TypeAliasDeclSyntax {
-    func deprecationShim(for expected: String) -> Bool {}
+// good — the question is about the hyperlink, so the hyperlink answers it
+// the callers read fluently, for example: `link.points(to: domain)`
+extension Hyperlink {
+    func points(to domain: Domain) -> Bool {}
 }
 
-// bad — `Checker` holds the function, but nothing in it uses the checker
-extension Checker {
-    func deprecationShim(_ alias: TypeAliasDeclSyntax, for expected: String) -> Bool {}
+// bad — `NodeVisitor` holds the function, but nothing in it uses the visitor’s state
+// the callers look awkward, for example: `self.doesPointToDomain(link: link, to: domain)`
+extension NodeVisitor {
+    func doesPointToDomain(link: Hyperlink, to domain: Domain) -> Bool {}
 }
 ```
 
 A helper that does belong to a coordinator’s domain, but never reads or writes `self`, should be a `static func`. That way, the signature shows that calling it can’t depend on, or change, the state of a pass in progress. Keep instance methods for the code that reads or mutates instance state, so that a reader can assume every instance method does.
 
 ```swift
-// good — classifying an enum needs nothing from the checker
-private static func exemptKeynum(_ enumDeclaration: EnumDeclSyntax) -> Bool {}
+// good — we assume that percent-encoding in this context is tied closely enough to `URI` that
+// it would make sense to scope it under `URI`’s namespace, and it doesn’t depend on the state
+// of any particular instance of `URI`, so a static function is appropriate
+extension URI {
+    private static func escape(unencoded: String) -> String {}
+}
 
-// bad — looks like it depends on the checker’s state, but doesn’t
-private func exemptKeynum(_ enumDeclaration: EnumDeclSyntax) -> Bool {}
+// bad — looks like it depends on the URI instance’s state, but doesn’t
+extension URI {
+    private func escape(unencoded: String) -> String {}
+}
 ```
 
 
