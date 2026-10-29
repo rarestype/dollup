@@ -44,11 +44,11 @@ Documentation comments are separate kinds of piece (`.docLineComment` and `.docB
 
 ## Naming cast nodes
 
-When you cast a node with `as(_:)`, name the result after the kind of node, spelled out, as the Swift style guide requires for all names. Shadow the uncast node when you no longer need it.
+When you cast a node with `as(_:)`, name the result after the kind of node, spelled out, as the Swift style guide requires for all names. Shadow the uncast node when you no longer need it. Don’t add suffixes just to avoid having to use backticks.
 
 ```swift
 // good
-if  let extensionDeclaration: ExtensionDeclSyntax = declaration.as(ExtensionDeclSyntax.self) {}
+if  let `extension`: ExtensionDeclSyntax = declaration.as(ExtensionDeclSyntax.self) {}
 
 // bad
 if  let extDecl: ExtensionDeclSyntax = decl.as(ExtensionDeclSyntax.self) {}

@@ -839,6 +839,8 @@ static func == (a: Self, b: Self) -> Bool { (a.scope, a.last) == (b.scope, b.las
 static func == (a: Self, b: Self) -> Bool { a.scope == b.scope && a.last == b.last }
 ```
 
+This is especially useful for writing ``Comparable`` conformances, which tend to be gnarly when written out using manual field-by-field comparison logic.
+
 
 ### Conditions
 
@@ -853,7 +855,7 @@ if  arguments.contains("deprecated"),
 
 // bad — one condition is buried in an expression, and the other in a nested `if`
 if  arguments.contains("deprecated") {
-    if  !self.name.isEmpty && self.name != "main.swift" {
+    if !self.name.isEmpty && self.name != "main.swift" {
         return true
     }
 }
@@ -878,7 +880,7 @@ let frequency: Double = (k.min ... k.max).reduce(into: 0) {
 ```
 
 
-### Text processing
+### String processing
 
 Most Swift code in the wild processes strings by counting characters, which is the main reason this section exists. Counting is the habit to unlearn: an index should come from a search, a standard library method, or a regex match, never from arithmetic on the length of a literal.
 
@@ -896,19 +898,39 @@ if  let dot: String.Index = name.lastIndex(of: ".") {
 let stem: Substring = name[..<name.index(name.endIndex, offsetBy: -6)]
 ```
 
-The ban covers every disguise of the same arithmetic, including `offsetBy: "Package@swift-".count`, `dropFirst(14)` and `prefix(2)`. Test for a prefix with `starts(with:)`, never `hasPrefix(_:)`, and remove one you know is there with `trimmingPrefix(_:)`. (The standard library has no `ends(with:)`, so `hasSuffix(_:)` remains the way to test for a suffix.)
+The ban covers every disguise of the same arithmetic, including `offsetBy: "foo".count`, `dropFirst(14)` and `prefix(2)`.
 
-```swift
-// good
-if  line.starts(with: "//") {
-    let body: Substring = line.trimmingPrefix("//")
+Consuming prefixes and suffixes is usually not the best way to slice a string. Lots of trimming-heavy code becomes significantly cleaner when refactored into index-based alternatives.
+
+```
+// good — error handling comes out naturally with the colon index on hand
+if  let colon: String.Index = uri.firstIndex(of: ":") {
+    guard uri[..<colon] == "https" else {
+        throw UnsupportedLink.scheme(uri[..<colon])
+    }
+
+    // the constant `3` is okay here, because that refers to a fixed-width delimiter `://`
+    guard
+    let domain: String.Index = uri.index(colon, offsetBy: 3, limitedBy: uri.endIndex),
+    // we could have elided an always-true check by taking the `index(after:)` of the colon,
+    // at the cost of an additional variable binding. if the code cares about the position
+    // immediately after the colon, that might be worth it
+    uri[colon ..< domain] == "://" else {
+        throw UnsupportedLink.malformed(uri)
+    }
 }
 
-// bad
-if  line.hasPrefix("//") {
-    let body: Substring = line.dropFirst(2)
+// bad — if you then drop the prefix, you have to count again.
+// if the delimiter is a literal, count it once (in the guard)
+if  uri.starts(with: "https://") {
+    let domain: Substring = uri.dropFirst(8)
 }
 ```
+
+The good example above is longer than the bad one, which is why people are often tempted to write the bad one instead. But the good one is clearer, potentially faster, and gives you error handling for free.
+
+
+In situations where a prefix is tested for, but never used, prefer `starts(with:)` over `hasPrefix(_:)`. The standard library has no `ends(with:)`, so `hasSuffix(_:)` remains the way to test for a suffix. These are relatively rare situations, since often if you are checking whether a string starts or ends with something, you also want to use that slice.
 
 
 #### Test single characters with patterns
@@ -934,10 +956,31 @@ let trimmed: Substring = line.drop(while: \.isWhitespace)
 let trimmed: Substring = line.drop { $0 == " " || $0 == "\t" || $0 == "\r" }
 ```
 
-Be deliberate when the property is wider than what you mean. `isWholeNumber` accepts non-ASCII digits such as “٣”; if a format only allows ASCII digits, a regex with `.asciiOnlyDigits()`, or `isASCII` together with `isWholeNumber`, says so.
+#### Use hex literals for ASCII values
+
+Avoid using unicode properties when the property is wider than what you mean. For example, `isWholeNumber` accepts non-ASCII digits such as ‘٣’. if a pattern only applies to ASCII characters, drop down to `utf8` views and match on integer literals.
+
+Write ASCII values in hex, never decimal. When writing ASCII values, always include a comment nearby identifying the characters they represent.
+
+```swift
+// good
+let id: String.Index? = line.utf8.firstIndex {
+    // '1' ... '9'
+    0x31 ... 0x39 ~= $0 ||
+    // 'a' ... 'f'
+    0x61 ... 0x66 ~= $0 ||
+    // 'A' ... 'F'
+    0x41 ... 0x46 ~= $0
+}
+
+// bad — `isHexDigit` accepts fullwidth compatibility forms, which may not be spec-compliant
+let id: String.Index? = line.firstIndex(where: \.isHexDigit)
+```
+
+Drop down to the UTF-8 level only when the domain calls for it, or in performance-critical contexts. In most situations, performing the equivalent operations on the default `Character` view (such as searching for a delimiter) is fine, and more readable.
 
 
-#### Regular expressions and slicing loops
+#### Regular expressions
 
 Use a `Regex` to match a short string against a grammar once, such as a file name or a version string. The regex states the grammar in one place, while hand-written parsing restates it as control flow that has to be read line by line to recover the format.
 
@@ -949,12 +992,19 @@ if  let match: Regex<(Substring, Substring)>.Match = name.wholeMatch(of: manifes
 }
 
 // bad — the same grammar, rebuilt from offsets, `split` and digit checks
-guard name.hasPrefix("Package@swift-"), name.hasSuffix(".swift") else { return false }
+guard
+name.hasPrefix("Package@swift-"),
+name.hasSuffix(".swift") else {
+    return false
+}
+
 let start: String.Index = name.index(name.startIndex, offsetBy: 14)
 let end: String.Index = name.index(name.endIndex, offsetBy: -6)
 let version: Substring = name[start ..< end]
 let parts: [Substring] = version.split(separator: ".", omittingEmptySubsequences: false)
 ```
+
+#### Pipelines and slicing loops
 
 In hot paths, such as code that runs once per token or once per line of a large file, prefer a slicing loop. Avoid both regexes and chains of allocating collection operations there, because each stage of `split`, `map` and `joined` allocates an intermediate buffer.
 
@@ -973,7 +1023,7 @@ scope += Self.unencase(remainder)
 let scope: String = raw.split(separator: ".").map { Self.unencase($0) }.joined(separator: ".")
 ```
 
-Outside hot paths, the pipeline is fine, and often clearer.
+Outside hot paths, pipelines are fine, but can sometimes be a code smell that suggests an expression is “doing too much” and could be broken down. When pipelines do appear, consider if a `lazy` view might eliminate intermediate buffers.
 
 
 #### Interpolate instead of calling `description`
@@ -1103,11 +1153,19 @@ Use `#expect(throws:)` only when the error itself is not inspected, which is som
 
 ## Preparing work for review
 
-The rules in this guide are only useful if you remember them while you write. Agents in particular tend to read this guide at the start of a session, and then fall back on the patterns that dominate public Swift code as the session goes on. A context compaction keeps the instruction to follow this guide, but drops its rules.
+The rules in this guide are only useful if you remember them while you write. Don’t just read this guide at the start of a session and then fall back on the patterns that dominate public Swift code as the session progresses.
 
-So before each commit, re-read the sections of this guide that the commit’s diff touches, and review that diff against them as a style reviewer would. A commit is small enough to check this way; a whole branch at the end of the work is not. Re-read the sections after every compaction, too. Before you ask for review, or for another round, update the pull request description, so it describes the code as it now is, rather than how the first version worked.
+### Style is everyone’s responsibility
 
-### Addressing review comments
+A context compaction keeps the instruction to follow this guide, but drops its rules. Because people tend to mimic the patterns in the code around the code they are editing, unidiomatic code tends to beget more unidiomatic code.
+
+So before each commit, re-read the sections of this guide that the commit’s diff touches, and review that diff against them as a style reviewer would. A commit is small enough to check this way; a whole branch at the end of the work is not. Re-read the sections after every compaction, too.
+
+### Keep pull request descriptions up-to-date
+
+Before you ask for review, or for another round, update the pull request description, so it describes the code as it now is, rather than how the first version worked.
+
+### Address the patterns called out by review comments, not just the comments themselves
 
 Treat each review comment as one example of a pattern, not as a single line to fix. Before you reply, search the whole branch for other instances of the same pattern, fix all of them, and say how many there were. If the pattern isn’t covered by this guide yet, say so, so that it can be added. If you keep persistent notes, record the correction as a rule you can apply next time, not as a note about this one pull request.
 
