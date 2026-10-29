@@ -12,8 +12,6 @@ public struct Diagnostics {
     }
 }
 
-extension Diagnostics: Sendable {}
-
 extension Diagnostics: CustomStringConvertible {
     public var description: String {
         let prefix: String = self.error ? "error" : "warning"

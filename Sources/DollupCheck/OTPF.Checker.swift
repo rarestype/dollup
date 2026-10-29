@@ -691,15 +691,7 @@ extension OTPF.Checker {
             case .newlines, .carriageReturnLineFeeds, .spaces, .tabs:
                 continue
             case .lineComment(let text):
-                let pattern: Regex<AnyRegexOutput> = try! .init(
-                    #"^//\s*swift-tools-version:\s*(\S+)"#
-                )
-                guard
-                let match: Regex<AnyRegexOutput>.Match = try? pattern.firstMatch(in: text),
-                let version: Substring = match[1].substring else {
-                    return nil
-                }
-                return version
+                return text.firstMatch(of: /^\/\/\s*swift-tools-version:\s*(\S+)/)?.1
             default:
                 return nil
             }

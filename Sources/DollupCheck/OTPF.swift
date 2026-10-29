@@ -39,13 +39,7 @@ public enum OTPF {
 
 extension OTPF {
     @_spi(testable) public static func manifest(name: String) -> Bool {
-        if  name == "Package.swift" {
-            return true
-        }
-        let pattern: Regex<AnyRegexOutput> = try! .init(
-            #"Package@swift-(\d+)(?:\.(\d+))?(?:\.(\d+))?\.swift"#
-        )
-        if  case _? = try? pattern.wholeMatch(in: name) {
+        if  case _? = name.wholeMatch(of: /Package(?:@swift-\d+(?:\.\d+){0,2})?\.swift/) {
             return true
         }
         return false
