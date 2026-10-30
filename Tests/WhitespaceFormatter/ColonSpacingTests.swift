@@ -106,6 +106,26 @@ import WhitespaceFormatter
 
         #expect(try self.format(input) == expected + "\n")
     }
+    @Test static func IfPrefixOperator() throws {
+        let input: String = """
+        if  !foo {
+        }
+        if  ~~bar {
+        }
+        if  baz {
+        }
+        """
+        let expected: String = """
+        if !foo {
+        }
+        if ~~bar {
+        }
+        if  baz {
+        }
+        """
+
+        #expect(try self.format(input) == expected + "\n")
+    }
 }
 extension ColonSpacingTests {
     private static func format(_ input: consuming String) throws -> String {
