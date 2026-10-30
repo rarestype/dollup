@@ -611,4 +611,25 @@ import WhitespaceFormatter
 
         try #expect(WhitespaceFormatter.reformat(input, width: 40) == expected + "\n")
     }
+    @Test static func ClosureParameterClause() throws {
+        ///                                     | +40
+        let input: String = """
+        foo { (count: Int, isEnabled: Bool) in print(count) }
+        foo { (veryLongCount: Int, isEnabled: Bool) in print(veryLongCount) }
+        """
+        ///                                     | +40
+        let expected: String = """
+        foo { (count: Int, isEnabled: Bool) in
+            print(count)
+        }
+        foo { (
+                veryLongCount: Int,
+                isEnabled: Bool
+            ) in
+            print(veryLongCount)
+        }
+        """
+
+        try #expect(WhitespaceFormatter.reformat(input, width: 40) == expected + "\n")
+    }
 }

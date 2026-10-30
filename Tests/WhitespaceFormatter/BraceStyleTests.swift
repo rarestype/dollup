@@ -700,6 +700,50 @@ import WhitespaceFormatter
 
         #expect(try self.egyptian(input) == egyptian + "\n")
     }
+    @Test static func ClosureParameterClause() throws {
+        let input: String = """
+        let render: (Int, Bool) -> Void = {
+            (count: Int, isEnabled: Bool) in
+            print(count, isEnabled)
+        }
+        foo {
+            (
+                x: Int,
+                y: Int
+            ) -> Bool in
+            x == y
+        }
+        """
+        let egyptian: String = """
+        let render: (Int, Bool) -> Void = { (count: Int, isEnabled: Bool) in
+            print(count, isEnabled)
+        }
+        foo { (
+                x: Int,
+                y: Int
+            ) -> Bool in
+            x == y
+        }
+        """
+        let allman: String = """
+        let render: (Int, Bool) -> Void =
+        {
+            (count: Int, isEnabled: Bool) in
+            print(count, isEnabled)
+        }
+        foo
+        {
+            (
+                x: Int,
+                y: Int
+            ) -> Bool in
+            x == y
+        }
+        """
+
+        #expect(try self.egyptian(input) == egyptian + "\n")
+        #expect(try self.allman(input) == allman + "\n")
+    }
 }
 extension BraceStyleTests {
     private static func egyptian(_ input: consuming String) throws -> String {
