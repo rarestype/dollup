@@ -176,37 +176,11 @@ extension BracketCalculator {
             if  case .egyptian = self.style,
                 case .brace = type,
                 scope.empty,
-                Self.foldsEmpty(token),
+                case true? = token.parent?.foldsEmpty,
                 scope.open.trailingTrivia.isWhitespace,
                 token.leadingTrivia.isWhitespace {
                 self.matched[position] = .closing
             }
-        }
-    }
-
-    private static func foldsEmpty(_ token: TokenSyntax) -> Bool {
-        guard let parent: Syntax = token.parent else {
-            return false
-        }
-        switch parent.kind {
-        case .accessorBlock, .memberBlock, .precedenceGroupDecl:
-            return true
-        case .codeBlock:
-            switch parent.parent?.kind {
-            case .accessorDecl,
-                .deinitializerDecl,
-                .forStmt,
-                .functionDecl,
-                .initializerDecl,
-                .macroDecl,
-                .repeatStmt,
-                .whileStmt:
-                return true
-            default:
-                return false
-            }
-        default:
-            return false
         }
     }
 }

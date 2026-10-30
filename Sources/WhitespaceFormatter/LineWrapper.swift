@@ -19,11 +19,11 @@ class LineWrapper: SyntaxVisitor {
     override func visit(_ node: AccessorBlockSyntax) -> SyntaxVisitorContinueKind {
         switch node.accessors {
         case .accessors(let list):
-            guard !list.isEmpty else {
+            if  list.isEmpty {
                 return .skipChildren
             }
         case .getter(let list):
-            guard !list.isEmpty else {
+            if  list.isEmpty {
                 return .skipChildren
             }
         }
@@ -39,7 +39,7 @@ class LineWrapper: SyntaxVisitor {
         return .skipChildren
     }
     override func visit(_ node: CodeBlockSyntax) -> SyntaxVisitorContinueKind {
-        guard !node.statements.isEmpty else {
+        if  node.statements.isEmpty {
             return .skipChildren
         }
 
@@ -54,7 +54,7 @@ class LineWrapper: SyntaxVisitor {
         return .skipChildren
     }
     override func visit(_ node: MemberBlockSyntax) -> SyntaxVisitorContinueKind {
-        guard !node.members.isEmpty else {
+        if  node.members.isEmpty {
             return .skipChildren
         }
 
@@ -69,7 +69,7 @@ class LineWrapper: SyntaxVisitor {
         return .skipChildren
     }
     override func visit(_ node: ClosureExprSyntax) -> SyntaxVisitorContinueKind {
-        guard !node.statements.isEmpty || node.signature != nil else {
+        if  node.statements.isEmpty, node.signature == nil {
             return .skipChildren
         }
 

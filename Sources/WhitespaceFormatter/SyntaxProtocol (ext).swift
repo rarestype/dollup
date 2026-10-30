@@ -42,4 +42,25 @@ extension SyntaxProtocol {
     var withoutTrailingSpaces: Self {
         self.with(\.trailingTrivia, self.trailingTrivia.withoutTrailingSpaces)
     }
+
+    var foldsEmpty: Bool {
+        switch self.kind {
+        case .accessorBlock: true
+        case .memberBlock: true
+        case .precedenceGroupDecl: true
+        case .codeBlock:
+            switch self.parent?.kind {
+            case .accessorDecl: true
+            case .deinitializerDecl: true
+            case .forStmt: true
+            case .functionDecl: true
+            case .initializerDecl: true
+            case .macroDecl: true
+            case .repeatStmt: true
+            case .whileStmt: true
+            default: false
+            }
+        default: false
+        }
+    }
 }
