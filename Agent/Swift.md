@@ -879,6 +879,18 @@ let frequency: Double = (k.min ... k.max).reduce(into: 0) {
 }
 ```
 
+#### Don’t call `flatMap` on optionals
+
+When a transform of an optional value returns an optional, call `map(_:)` and coalesce the result with `?? nil`. `Optional.flatMap(_:)` hides the second optional in the closure’s return type, so it reads like the collection method and invites code whose meaning nobody can see, such as `(value ?? fallback).flatMap { $0 }`, which is really just `value ?? fallback`.
+
+```swift
+// good — the transform returns an optional, and `?? nil` flattens it in plain sight
+let primary: Vector3? = orbit.map { positions[$0.orbits]?.about } ?? nil
+
+// bad
+let primary: Vector3? = orbit.flatMap { positions[$0.orbits]?.about }
+```
+
 
 ### String processing
 
