@@ -67,7 +67,7 @@ extension OTPF.Checker {
     private mutating func check(special: OTPF.FileClass.Special) {
         switch special {
         case .anchor:
-            if  !self.tree.statements.isEmpty {
+            if !self.tree.statements.isEmpty {
                 self.diagnose(
                     node: .init(self.tree.statements.first!),
                     message: "'anchor.swift' must be empty"
@@ -157,7 +157,7 @@ extension OTPF.Checker {
     private mutating func checkExtension(expectedType: OTPF.PrimaryType) {
         for statement: CodeBlockItemSyntax in self.tree.statements.unrolled {
             guard case .decl(let declaration) = statement.item else {
-                if  !statement.item.is(ImportDeclSyntax.self) {
+                if !statement.item.is(ImportDeclSyntax.self) {
                     self.diagnose(
                         node: .init(statement),
                         message: """
@@ -574,7 +574,7 @@ extension OTPF.Checker {
         }
 
         if  primaryType.nested {
-            if  !primaryTypeFound {
+            if !primaryTypeFound {
                 self.diagnose(
                     node: .init(self.tree),
                     message: """
@@ -587,7 +587,7 @@ extension OTPF.Checker {
                 )
             }
         } else {
-            if  !primaryTypeFound,
+            if !primaryTypeFound,
                !matchingFreeFunction,
                !matchingTypealias,
                 self.name != "main.swift" {
