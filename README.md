@@ -28,7 +28,7 @@ Dollup is easiest to use in precompiled form. The binaries are distributed from 
 <!-- DO NOT EDIT BELOW! AUTOSYNC CONTENT [ManifestDependency] -->
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ordo-one/dollup", from: "1.3.3"),
+    .package(url: "https://github.com/ordo-one/dollup", from: "1.3.4"),
 ]
 ```
 
@@ -54,9 +54,9 @@ Note that prebuilt binaries are only available for select platforms.
 <!-- DO NOT EDIT BELOW! AUTOSYNC CONTENT [Downloads] -->
 | Platform | Architecture | Download |
 | -------- | ------------ | -------- |
-| 🍏 macOS | arm64 | [zip](https://get.rarestype.com/dollup/1.3.3/macOS-arm64/dollup.artifactbundle.zip) |
-| 🐧 Linux | arm64 | [zip](https://get.rarestype.com/dollup/1.3.3/Linux-aarch64/dollup.artifactbundle.zip) |
-| 🐧 Linux | x86_64 | [zip](https://get.rarestype.com/dollup/1.3.3/Linux-x86_64/dollup.artifactbundle.zip) |
+| 🍏 macOS | arm64 | [zip](https://get.rarestype.com/dollup/1.3.4/macOS-arm64/dollup.artifactbundle.zip) |
+| 🐧 Linux | arm64 | [zip](https://get.rarestype.com/dollup/1.3.4/Linux-aarch64/dollup.artifactbundle.zip) |
+| 🐧 Linux | x86_64 | [zip](https://get.rarestype.com/dollup/1.3.4/Linux-x86_64/dollup.artifactbundle.zip) |
 
 <!-- DO NOT EDIT ABOVE! AUTOSYNC CONTENT [Downloads] -->
 
