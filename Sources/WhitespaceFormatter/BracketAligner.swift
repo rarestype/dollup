@@ -16,6 +16,7 @@ extension BracketAligner: VerticalFolder {
     func fold(_ node: TokenSyntax) -> Bool? {
         switch node.tokenKind {
         case .leftBrace: self.foldAsOpening(node: node)
+        case .rightBrace: self.foldAsClosing(node: node)
         case .leftSquare: self.foldAsOpening(node: node)
         case .leftParen: self.foldAsOpening(node: node)
         case .multilineStringQuote: self.foldAsOpening(node: node)
@@ -39,6 +40,13 @@ extension BracketAligner {
     private func foldAsBridging(node: TokenSyntax) -> Bool? {
         if  case .bridging? = self.brackets[node.positionAfterSkippingLeadingTrivia] {
             return true
+        } else {
+            return nil
+        }
+    }
+    private func foldAsClosing(node: TokenSyntax) -> Bool? {
+        if  case .closing? = self.brackets[node.positionAfterSkippingLeadingTrivia] {
+            return false
         } else {
             return nil
         }

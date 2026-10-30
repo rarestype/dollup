@@ -17,6 +17,17 @@ class LineWrapper: SyntaxVisitor {
     }
 
     override func visit(_ node: AccessorBlockSyntax) -> SyntaxVisitorContinueKind {
+        switch node.accessors {
+        case .accessors(let list):
+            if  list.isEmpty {
+                return .skipChildren
+            }
+        case .getter(let list):
+            if  list.isEmpty {
+                return .skipChildren
+            }
+        }
+
         switch self.limitViolated(by: node, tier: .block) {
         case nil: return .visitChildren
         case true?: break
@@ -28,6 +39,10 @@ class LineWrapper: SyntaxVisitor {
         return .skipChildren
     }
     override func visit(_ node: CodeBlockSyntax) -> SyntaxVisitorContinueKind {
+        if  node.statements.isEmpty {
+            return .skipChildren
+        }
+
         switch self.limitViolated(by: node, tier: .block) {
         case nil: return .visitChildren
         case true?: break
@@ -39,6 +54,10 @@ class LineWrapper: SyntaxVisitor {
         return .skipChildren
     }
     override func visit(_ node: MemberBlockSyntax) -> SyntaxVisitorContinueKind {
+        if  node.members.isEmpty {
+            return .skipChildren
+        }
+
         switch self.limitViolated(by: node, tier: .block) {
         case nil: return .visitChildren
         case true?: break
@@ -50,19 +69,18 @@ class LineWrapper: SyntaxVisitor {
         return .skipChildren
     }
     override func visit(_ node: ClosureExprSyntax) -> SyntaxVisitorContinueKind {
+        if  node.statements.isEmpty,
+            case nil = node.signature {
+            return .skipChildren
+        }
+
         switch self.limitViolated(by: node, tier: .block) {
         case nil: return .visitChildren
         case true?: break
         case false?: return .skipChildren
         }
 
-        if  let signature: ClosureSignatureSyntax = node.signature {
-            self.break(after: signature)
-        } else {
-            self.break(after: node.leftBrace)
-        }
-
-        self.break(before: node.rightBrace)
+        self.break(closure: node)
         return .skipChildren
     }
 
@@ -507,15 +525,13 @@ extension LineWrapper {
     ) -> SyntaxVisitorContinueKind {
         for labeled: MultipleTrailingClosureElementSyntax in additionalClosures.reversed() {
             if case true? = self.limitViolated(by: labeled, tier: .block) {
-                self.break(after: labeled.closure.leftBrace)
-                self.break(before: labeled.closure.rightBrace)
+                self.break(closure: labeled.closure)
                 return .skipChildren
             }
         }
         if  let closure: ClosureExprSyntax = trailingClosure,
             case true? = self.limitViolated(by: closure, tier: .block) {
-            self.break(after: closure.leftBrace)
-            self.break(before: closure.rightBrace)
+            self.break(closure: closure)
             return .skipChildren
         }
         // try breaking the argument list (it is not a single node)
