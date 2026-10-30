@@ -234,6 +234,12 @@ extension ColonCalculator {
                 case nil:
                     throw UnmarkedError.init(token: current)
                 }
+            } else if
+                case .keyword(.if) = current.tokenKind,
+                case .prefixOperator = next.tokenKind,
+               !next.leadingTrivia.containsNewlines {
+                text += "\(current.withoutTrailingSpaces)"
+                text.append(" ")
             } else {
                 text += "\(current)"
             }
