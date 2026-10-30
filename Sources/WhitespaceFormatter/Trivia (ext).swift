@@ -1,6 +1,8 @@
 import SwiftSyntax
 
 extension Trivia {
+    var isWhitespace: Bool { self.allSatisfy(\.isWhitespace) }
+
     var containsNewlines: Bool {
         for piece: TriviaPiece in self {
             switch piece {

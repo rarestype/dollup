@@ -362,8 +362,7 @@ import WhitespaceFormatter
                 Generic<AVeryLongTypeName>
             >
         ) -> Int where Generic<T>: Protocol,
-            T: AnotherProtocolWithLongName {
-        }
+            T: AnotherProtocolWithLongName {}
         """
 
         try #expect(WhitespaceFormatter.reformat(input, width: 40) == expected + "\n")
