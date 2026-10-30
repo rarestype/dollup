@@ -37,6 +37,12 @@ final class BracketCalculator: SyntaxVisitor {
         return .skipChildren
     }
 
+    override func visit(_ node: ClosureParameterClauseSyntax) -> SyntaxVisitorContinueKind {
+        if  self.style.moves(.parenthesis) {
+            self.matched[node.leftParen.positionAfterSkippingLeadingTrivia] = .opening
+        }
+        return .visitChildren
+    }
     override func visit(
         _ node: MultipleTrailingClosureElementSyntax
     ) -> SyntaxVisitorContinueKind {

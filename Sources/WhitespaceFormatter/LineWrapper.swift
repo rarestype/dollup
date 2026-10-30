@@ -56,13 +56,7 @@ class LineWrapper: SyntaxVisitor {
         case false?: return .skipChildren
         }
 
-        if  let signature: ClosureSignatureSyntax = node.signature {
-            self.break(after: signature)
-        } else {
-            self.break(after: node.leftBrace)
-        }
-
-        self.break(before: node.rightBrace)
+        self.break(closure: node)
         return .skipChildren
     }
 
@@ -507,15 +501,13 @@ extension LineWrapper {
     ) -> SyntaxVisitorContinueKind {
         for labeled: MultipleTrailingClosureElementSyntax in additionalClosures.reversed() {
             if case true? = self.limitViolated(by: labeled, tier: .block) {
-                self.break(after: labeled.closure.leftBrace)
-                self.break(before: labeled.closure.rightBrace)
+                self.break(closure: labeled.closure)
                 return .skipChildren
             }
         }
         if  let closure: ClosureExprSyntax = trailingClosure,
             case true? = self.limitViolated(by: closure, tier: .block) {
-            self.break(after: closure.leftBrace)
-            self.break(before: closure.rightBrace)
+            self.break(closure: closure)
             return .skipChildren
         }
         // try breaking the argument list (it is not a single node)
