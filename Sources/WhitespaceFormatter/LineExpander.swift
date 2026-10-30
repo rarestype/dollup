@@ -194,46 +194,22 @@ class LineExpander: SyntaxVisitor {
         return .visitChildren
     }
     override func visit(_ node: FunctionCallExprSyntax) -> SyntaxVisitorContinueKind {
-        if !node.arguments.isEmpty,
-            let leftParen: TokenSyntax = node.leftParen,
-            let rightParen: TokenSyntax = node.rightParen,
-            node.arguments.containsInteriorNewlines(between: (leftParen, rightParen)) {
-            if  node.arguments.lacksPrecedingNewline {
-                self.break(before: node.arguments)
-            }
-            if  rightParen.lacksPrecedingNewline {
-                self.break(before: rightParen)
-            }
+        if  let leftParen: TokenSyntax = node.leftParen,
+            let rightParen: TokenSyntax = node.rightParen {
+            self.expand(arguments: node.arguments, between: (leftParen, rightParen))
         }
         return .visitChildren
     }
     override func visit(_ node: MacroExpansionExprSyntax) -> SyntaxVisitorContinueKind {
-        if !node.arguments.isEmpty,
-            let leftParen: TokenSyntax = node.leftParen,
-            let rightParen: TokenSyntax = node.rightParen,
-            node.arguments.containsInteriorNewlines(between: (leftParen, rightParen)) {
-            if  node.arguments.lacksPrecedingNewline {
-                self.break(before: node.arguments)
-            }
-            if  rightParen.lacksPrecedingNewline {
-                self.break(before: rightParen)
-            }
+        if  let leftParen: TokenSyntax = node.leftParen,
+            let rightParen: TokenSyntax = node.rightParen {
+            self.expand(arguments: node.arguments, between: (leftParen, rightParen))
         }
         return .visitChildren
     }
 
     override func visit(_ node: SubscriptCallExprSyntax) -> SyntaxVisitorContinueKind {
-        if !node.arguments.isEmpty,
-            node.arguments.containsInteriorNewlines(
-                between: (node.leftSquare, node.rightSquare)
-            ) {
-            if  node.arguments.lacksPrecedingNewline {
-                self.break(before: node.arguments)
-            }
-            if  node.rightSquare.lacksPrecedingNewline {
-                self.break(before: node.rightSquare)
-            }
-        }
+        self.expand(arguments: node.arguments, between: (node.leftSquare, node.rightSquare))
         return .visitChildren
     }
 
@@ -281,6 +257,27 @@ extension LineExpander {
     }
 }
 extension LineExpander {
+    private func expand(
+        arguments: LabeledExprListSyntax,
+        between delimiter: (TokenSyntax, TokenSyntax)
+    ) {
+        guard !arguments.isEmpty,
+        arguments.containsInteriorNewlines(between: delimiter) else {
+            return
+        }
+        var breakBefore: Bool = true
+        for argument: LabeledExprSyntax in arguments {
+            let multiline: Bool = argument.containsInteriorNewlines
+            if  breakBefore || multiline,
+                argument.lacksPrecedingNewline {
+                self.break(before: argument)
+            }
+            breakBefore = multiline
+        }
+        if  delimiter.1.lacksPrecedingNewline {
+            self.break(before: delimiter.1)
+        }
+    }
     private func `break`(before node: some SyntaxProtocol, type: LinebreakType = .newline) {
         /// Line break position is after any leading trivia.
         let position: String.Index = self.text.utf8.index(

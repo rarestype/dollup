@@ -440,6 +440,43 @@ import WhitespaceFormatter
 
         try #expect(WhitespaceFormatter.reformat(input, width: 60) == expected + "\n")
     }
+    @Test static func MultilineStringArgument() throws {
+        let input: String = #"""
+        struct S {
+            func f() {
+                #expect(message == """
+                    first line
+                    second line
+                    """)
+                print("""
+                    first line
+                    second line
+                    """, 13)
+            }
+        }
+        """#
+        let expected: String = #"""
+        struct S {
+            func f() {
+                #expect(
+                    message == """
+                    first line
+                    second line
+                    """
+                )
+                print(
+                    """
+                    first line
+                    second line
+                    """,
+                    13
+                )
+            }
+        }
+        """#
+
+        try #expect(WhitespaceFormatter.reformat(input, width: 60) == expected + "\n")
+    }
 
     @Test static func OutOfOrderLinebreaking() throws {
         /// We should leave these alone
