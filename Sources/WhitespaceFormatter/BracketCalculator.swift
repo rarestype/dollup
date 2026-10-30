@@ -84,7 +84,9 @@ final class BracketCalculator: SyntaxVisitor {
         case .rightParen:
             self.pop(token, type: .parenthesis)
         default:
-            break
+            if  let last: Int = self.stack.indices.last {
+                self.stack[last].empty = false
+            }
         }
 
         self.skip(token.trailingTrivia)
@@ -136,12 +138,17 @@ extension BracketCalculator {
             soft = self.style.moves(type)
         }
 
+        if  let last: Int = self.stack.indices.last {
+            self.stack[last].empty = false
+        }
+
         self.stack.append(
             .init(
                 type: type,
                 soft: soft,
                 line: self.line,
-                open: token.positionAfterSkippingLeadingTrivia
+                open: token,
+                empty: true
             )
         )
     }
@@ -165,8 +172,41 @@ extension BracketCalculator {
         if  scope.soft, scope.line < self.line {
             // delimiters are movable if they are on a different line
             // than their opening delimiter
-            self.matched[scope.open] = .opening
-            self.matched[position] = .closing
+            self.matched[scope.open.positionAfterSkippingLeadingTrivia] = .opening
+            if  case .egyptian = self.style,
+                case .brace = type,
+                scope.empty,
+                Self.foldsEmpty(token),
+                scope.open.trailingTrivia.isWhitespace,
+                token.leadingTrivia.isWhitespace {
+                self.matched[position] = .closing
+            }
+        }
+    }
+
+    private static func foldsEmpty(_ token: TokenSyntax) -> Bool {
+        guard let parent: Syntax = token.parent else {
+            return false
+        }
+        switch parent.kind {
+        case .accessorBlock, .memberBlock, .precedenceGroupDecl:
+            return true
+        case .codeBlock:
+            switch parent.parent?.kind {
+            case .accessorDecl,
+                .deinitializerDecl,
+                .forStmt,
+                .functionDecl,
+                .initializerDecl,
+                .macroDecl,
+                .repeatStmt,
+                .whileStmt:
+                return true
+            default:
+                return false
+            }
+        default:
+            return false
         }
     }
 }

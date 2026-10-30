@@ -5,6 +5,7 @@ extension BracketCalculator {
         let type: BracketType
         let soft: Bool
         let line: UInt
-        let open: AbsolutePosition
+        let open: TokenSyntax
+        var empty: Bool
     }
 }

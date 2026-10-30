@@ -1,6 +1,22 @@
 import SwiftSyntax
 
 extension Trivia {
+    var isWhitespace: Bool {
+        for piece: TriviaPiece in self {
+            switch piece {
+            case .carriageReturns: continue
+            case .carriageReturnLineFeeds: continue
+            case .formfeeds: continue
+            case .newlines: continue
+            case .spaces: continue
+            case .tabs: continue
+            case .verticalTabs: continue
+            default: return false
+            }
+        }
+        return true
+    }
+
     var containsNewlines: Bool {
         for piece: TriviaPiece in self {
             switch piece {

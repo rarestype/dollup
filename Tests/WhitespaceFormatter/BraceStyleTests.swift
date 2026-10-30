@@ -641,8 +641,7 @@ import WhitespaceFormatter
         }
         """
         let egyptian: String = """
-        struct Foo/*:~Copyable*/ {
-        }
+        struct Foo/*:~Copyable*/ {}
         """
         let allman: String = """
         struct Foo//:~Copyable
@@ -660,8 +659,7 @@ import WhitespaceFormatter
         }
         """
         let egyptian: String = """
-        struct Foo/*/*:~Copyable*/bar*/ {
-        }
+        struct Foo/*/*:~Copyable*/bar*/ {}
         """
         let allman: String = """
         struct Foo//:~Copyable*/bar
@@ -671,6 +669,36 @@ import WhitespaceFormatter
 
         #expect(try self.egyptian(input) == egyptian + "\n")
         #expect(try self.allman(input) == allman + "\n")
+    }
+    @Test static func EmptyBraces() throws {
+        let input: String = """
+        struct Foo {
+        }
+        extension Foo: Bar {
+        }
+        func baz() {
+        }
+        while condition {
+        }
+        struct Commented {
+            // keep interior comment
+        }
+        if condition {
+        }
+        """
+        let egyptian: String = """
+        struct Foo {}
+        extension Foo: Bar {}
+        func baz() {}
+        while condition {}
+        struct Commented {
+            // keep interior comment
+        }
+        if condition {
+        }
+        """
+
+        #expect(try self.egyptian(input) == egyptian + "\n")
     }
 }
 extension BraceStyleTests {

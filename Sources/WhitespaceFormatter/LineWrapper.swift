@@ -17,6 +17,17 @@ class LineWrapper: SyntaxVisitor {
     }
 
     override func visit(_ node: AccessorBlockSyntax) -> SyntaxVisitorContinueKind {
+        switch node.accessors {
+        case .accessors(let list):
+            guard !list.isEmpty else {
+                return .skipChildren
+            }
+        case .getter(let list):
+            guard !list.isEmpty else {
+                return .skipChildren
+            }
+        }
+
         switch self.limitViolated(by: node, tier: .block) {
         case nil: return .visitChildren
         case true?: break
@@ -28,6 +39,10 @@ class LineWrapper: SyntaxVisitor {
         return .skipChildren
     }
     override func visit(_ node: CodeBlockSyntax) -> SyntaxVisitorContinueKind {
+        guard !node.statements.isEmpty else {
+            return .skipChildren
+        }
+
         switch self.limitViolated(by: node, tier: .block) {
         case nil: return .visitChildren
         case true?: break
@@ -39,6 +54,10 @@ class LineWrapper: SyntaxVisitor {
         return .skipChildren
     }
     override func visit(_ node: MemberBlockSyntax) -> SyntaxVisitorContinueKind {
+        guard !node.members.isEmpty else {
+            return .skipChildren
+        }
+
         switch self.limitViolated(by: node, tier: .block) {
         case nil: return .visitChildren
         case true?: break
@@ -50,6 +69,10 @@ class LineWrapper: SyntaxVisitor {
         return .skipChildren
     }
     override func visit(_ node: ClosureExprSyntax) -> SyntaxVisitorContinueKind {
+        guard !node.statements.isEmpty || node.signature != nil else {
+            return .skipChildren
+        }
+
         switch self.limitViolated(by: node, tier: .block) {
         case nil: return .visitChildren
         case true?: break
