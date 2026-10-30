@@ -439,6 +439,101 @@ import WhitespaceFormatter
 
         try #expect(WhitespaceFormatter.reformat(input, width: 60) == expected + "\n")
     }
+    @Test static func MultilineStringArgument() throws {
+        let input: String = #"""
+        struct S {
+            func f() {
+                #expect(message == """
+                    first line
+                    second line
+                    """)
+                print("""
+                    first line
+                    second line
+                    """, 13)
+            }
+        }
+        """#
+        let expected: String = #"""
+        struct S {
+            func f() {
+                #expect(
+                    message == """
+                    first line
+                    second line
+                    """
+                )
+                print(
+                    """
+                    first line
+                    second line
+                    """,
+                    13
+                )
+            }
+        }
+        """#
+
+        try #expect(WhitespaceFormatter.reformat(input, width: 60) == expected + "\n")
+    }
+    @Test static func MultilineCollectionOrClosureArgument() throws {
+        let input: String = """
+        struct S {
+            func f() {
+                call(a, b.map {
+                    $0
+                }, c)
+                call(a, [
+                    1,
+                    2,
+                ], c)
+            }
+        }
+        """
+        let expected: String = """
+        struct S {
+            func f() {
+                call(
+                    a,
+                    b.map {
+                        $0
+                    },
+                    c
+                )
+                call(
+                    a,
+                    [
+                        1,
+                        2,
+                    ],
+                    c
+                )
+            }
+        }
+        """
+
+        try #expect(WhitespaceFormatter.reformat(input, width: 60) == expected + "\n")
+    }
+    @Test static func AvailableWithMultilineMessage() throws {
+        let input: String = #"""
+        @available(*, deprecated, message: """
+            first line
+            second line
+            """)
+        func foo() {}
+        """#
+        let expected: String = #"""
+        @available(
+            *, deprecated, message: """
+            first line
+            second line
+            """
+        )
+        func foo() {}
+        """#
+
+        try #expect(WhitespaceFormatter.reformat(input, width: 60) == expected + "\n")
+    }
 
     @Test static func OutOfOrderLinebreaking() throws {
         /// We should leave these alone
