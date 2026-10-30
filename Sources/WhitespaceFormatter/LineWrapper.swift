@@ -69,7 +69,8 @@ class LineWrapper: SyntaxVisitor {
         return .skipChildren
     }
     override func visit(_ node: ClosureExprSyntax) -> SyntaxVisitorContinueKind {
-        if  node.statements.isEmpty, node.signature == nil {
+        if  node.statements.isEmpty,
+            case nil = node.signature {
             return .skipChildren
         }
 
