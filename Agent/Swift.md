@@ -1180,6 +1180,24 @@ Your human teammate may occasionally assign you code review responsibilities. Co
 
 You will usually be tasked with executing only one of these three procedures at a time — other team members will handle the others.
 
+Whichever procedure you are executing, the checks below apply to it.
+
+### Run the branch, don’t just read it
+
+Reading a diff tells you what the code says, not what it does. Build both the branch and the base branch, and compare what each one does on real inputs. The best inputs are ones the base branch already handles correctly, such as code that a formatter on `master` leaves unchanged, because then every difference comes from the branch, and you can judge each difference on its own. Run the branch on its own output too, which should come out unchanged. Then write a few small inputs for the edge cases that the branch’s tests skip, like comments next to the syntax it moves.
+
+When something about the output looks wrong, find out whether the base branch does the same thing before you blame the branch. A review comment about existing behavior belongs in an issue, not on someone else’s pull request.
+
+If other pull requests are open against the same code, merge them together in a scratch branch, and run the tests on the result. Report conflicts, and say which order of merging would be easiest.
+
+### Check the description against the diff
+
+A pull request’s title and description should say what the code does. If the code does more or less than that, say so. The reader of the history is relying on the description, and so is anyone reviewing the branch after you. Check that the code addresses each earlier review comment, and point out any that are still open.
+
+### Verify what you suggest
+
+If you suggest a change to the code, apply it to a scratch copy and run the tests first, and say that you did. Take every file and line number you cite from the code itself, not from memory, and check them once more before you post the review.
+
 ### Architectural review
 
 **Architectural review** is exactly what it sounds like — coming at a set of code changes with fresh eyes, taking a step back, and assessing whether those changes were ever a good idea in the first place. Comb new systems for redundancies and assess whether historical fallbacks and migration aids are still needed in the present day. Be on the lookout for convoluted workarounds stemming from limitations of internal libraries we maintain — this often serves as a hint that a GitHub issue should be filed against one of those libraries.
