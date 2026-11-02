@@ -38,7 +38,7 @@ jobs:
             -   name: 🎀 Install Swift 🎀
                 uses: rarestype/swift-install-action@v1
                 with:
-                    swift-release: 6.4.1-RELEASE
+                    swift-release: 6.4.2-RELEASE
 
             -   name: 🎀 Run tests 🎀
                 run: Scripts/TestAll
@@ -63,7 +63,7 @@ jobs:
             -   name: 🎀 Install Swift 🎀
                 uses: rarestype/swift-install-action@v1
                 with:
-                    swift-release: 6.4.1-RELEASE
+                    swift-release: 6.4.2-RELEASE
 
             -   name: 🎀 Run tests 🎀
                 run: Scripts/TestAll
