@@ -892,6 +892,38 @@ let primary: Vector3? = orbit.flatMap { positions[$0.orbits]?.about }
 ```
 
 
+### Look up each key once
+
+Every subscript by key hashes the key and searches the table for it. When code reads several things from one entry, or reads an entry and then writes it back, find the entry once: bind it to a local for reads, and mutate through a single access, such as `[key, default:]` or a `_modify` subscript, for writes. When visiting every entry, walk the values by index, instead of looking up each key again.
+
+```swift
+// good — one lookup
+let item: Item? = self.inventory[sku]
+let price: Price? = item?.price
+let stock: Int = item?.stock ?? 0
+
+// bad — the same key is hashed twice
+let price: Price? = self.inventory[sku]?.price
+let stock: Int = self.inventory[sku]?.stock ?? 0
+
+// good — one access reads and writes the entry
+self.counts[key, default: 0] += 1
+
+// bad — one lookup to read, another to write
+self.counts[key] = (self.counts[key] ?? 0) + 1
+
+// good — visits each entry in place
+for i: [UserID: Session].Index in self.sessions.values.indices {
+    self.sessions.values[i].expire(before: now)
+}
+
+// bad — hashes each key again, to find the entry it came from
+for id: UserID in self.sessions.keys {
+    self.sessions[id]?.expire(before: now)
+}
+```
+
+
 ### String processing
 
 Most Swift code in the wild processes strings by counting characters, which is the main reason this section exists. Counting is the habit to unlearn: an index should come from a search, a standard library method, or a regex match. An offset counted from the length of a literal is only acceptable when the characters it skips are checked against that literal right where it is used.
@@ -1209,6 +1241,14 @@ A pull request’s title and description should say what the code does. If the c
 ### Verify what you suggest
 
 If you suggest a change to the code, apply it to a scratch copy and run the tests first, and say that you did. Take every file and line number you cite from the code itself, not from memory, and check them once more before you post the review.
+
+### Check claims against the source
+
+Claims about build configuration, complexity, or which API the code now uses are easy to get wrong, and easy to check. Before you post one, read the code or the documentation that settles it. When the author makes one, check it the same way, rather than trusting the summary. A flag that is on by default, or a method documented as O(*n*), can quietly turn a correct-sounding explanation into a wrong one.
+
+### Work through one stage at a time
+
+When the stages are shared between a reviewer and an author, keep to one stage at a time. The reviewer names the commit the review covers, and asks the author to hold new commits until it is posted. The author answers each point, either agreeing and pushing a fix, or disagreeing and saying why. The reviewer checks the fix before posting the next stage. Before replying, read back through the conversation for posts that arrived in the meantime, since replies that cross each other cost a round each.
 
 ### Architectural review
 
