@@ -904,7 +904,7 @@ When reading multiple values from a collection element, bind the element to a lo
 
 ```swift
 // good — uses an `Optional.map` to perform one lookup
-let (id, price): (Item, Price?)? = self.inventory[sku].map { ($0.id, $0.price) }
+let entry: (id: Item, price: Price?)? = self.inventory[sku].map { ($0.id, $0.price) }
 // good — uses an immediately-executed closure (less common)
 let item: (id: Item, price: Price?) = { ($0.id, $0.price) } (self.list[i])
 
@@ -914,7 +914,6 @@ let price: Price? = self.inventory[sku]?.price
 ```
 
 When mutating collections, it is critically important to hash as few times as exclusivity allows — finalizers often perform even more work than read-only accessors do. The idiomatic pattern to internalize here is the **immediately-executed inout closure**.
-
 
 ```swift
 // good — mutating an optional value
@@ -944,7 +943,7 @@ When mutating collection elements in a loop, don’t cross subscript boundaries 
 
 ```swift
 // good — does not cross subscript multiple times
-for i: Int in list {
+for i: Int in list.indices {
     try {
         try $0.foo()
         try $0.bar()
@@ -952,29 +951,29 @@ for i: Int in list {
 }
 
 // bad — bind the `list[i]` to an `inout` value instead
-for i: Int in list {
+for i: Int in list.indices {
     try list[i].foo()
     try list[i].bar()
 }
 ```
 
-The standard library `Dictionary` type requires special care — its `indices` property holds a reference to the underlying dictionary storage, so mutating it with a `for` loop actually copies the backing storage instead of mutating it in-place.
+The standard library `Dictionary` type requires special care — its `indices` and `values.indices` properties hold a reference to the underlying dictionary storage, so mutating it with a `for` loop actually copies the backing storage instead of mutating it in-place.
 
 ```swift
-// good - uses index manipulation to sidestep the copy-on-write pitfall
-var i: [String: Int].Index = dictionary.startIndex
+// good — uses index manipulation to sidestep the copy-on-write pitfall
+var i: [UserID: Session].Index = dictionary.startIndex
 while i < dictionary.endIndex {
     dictionary.values[i].sync()
     i = dictionary.index(after: i)
 }
 
 // bad — this will copy the dictionary storage
-for i: [String: Int].Index in dictionary.indices {
+for i: [UserID: Session].Index in dictionary.indices {
     dictionary.values[i].sync()
 }
 ```
 
-This is a specific defect of `Dictionary` and `Set`, other collections like `Array` and `OrderedDictionary` do not have this problem.
+This is a specific defect of `Dictionary`; other collections like `Array` and `OrderedDictionary` do not have this problem.
 
 
 ### String processing
