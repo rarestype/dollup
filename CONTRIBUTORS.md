@@ -5,7 +5,7 @@ dollup is built on SwiftSyntax. In addition to the [Swift style guide](Agent/Swi
 
 ## Reviewing formatter changes
 
-To run a formatter branch as the style guide asks, use the code of the repositories whose `Scripts/TestAll` checks dollup formatting as inputs: dollup itself, [rarestcheck](https://github.com/rarestype/rarestcheck), [swift-ion](https://github.com/rarestype/swift-ion) and [swift-json](https://github.com/rarestype/swift-json). `master` leaves their default branches unchanged, so a branch’s changes to them are exactly what it would do to our code. Export each one, rather than formatting a working copy:
+To run a formatter branch as the style guide asks, use as inputs the code of repositories whose `Scripts/TestAll` checks dollup formatting, for example dollup itself, [rarestcheck](https://github.com/rarestype/rarestcheck), [swift-ion](https://github.com/rarestype/swift-ion) and [swift-json](https://github.com/rarestype/swift-json). `master` leaves their default branches unchanged, so a branch’s changes to them are exactly what it would do to our code. Export each one, rather than formatting a working copy:
 
 ```bash
 mkdir -p corpus/swift-json
