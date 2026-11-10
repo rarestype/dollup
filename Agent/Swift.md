@@ -892,36 +892,89 @@ let primary: Vector3? = orbit.flatMap { positions[$0.orbits]?.about }
 ```
 
 
-### Look up each key once
+### Accessing values
 
-Every subscript by key hashes the key and searches the table for it. When code reads several things from one entry, or reads an entry and then writes it back, find the entry once: bind it to a local for reads, and mutate through a single access, such as `[key, default:]` or a `_modify` subscript, for writes. When visiting every entry, walk the values by index, instead of looking up each key again.
+Great Swift code emphasizes value types, which are manipulated in accordance with value semantics. Central to the value paradigm is the **in-place mutation**, which is easy to do wrong if you don’t know the right patterns.
+
+#### Look up each key once
+
+Subscripts in Swift look cheap, but aren’t, particularly if the collection is a hashed one. String-keyed dictionaries are especially heavyweight, as they may perform Unicode normalization on every access. However, even contiguously-indexed collections can be problematic if they lack `@_semantics` annotations, which is frequently the case for custom collection types.
+
+When reading multiple values from a collection element, bind the element to a local variable first, if it doesn’t retain any buffers that might be copied-on-write by a subsequent mutation in the same scope. Otherwise, use a `map` or (less commonly) an immediately-executed closure to extract the relevant fields.
 
 ```swift
-// good — one lookup
-let item: Item? = self.inventory[sku]
-let price: Price? = item?.price
-let stock: Int = item?.stock ?? 0
+// good — uses an `Optional.map` to perform one lookup
+let (id, price): (Item, Price?)? = self.inventory[sku].map { ($0.id, $0.price) }
+// good — uses an immediately-executed closure (less common)
+let item: (id: Item, price: Price?) = { ($0.id, $0.price) } (self.list[i])
 
 // bad — the same key is hashed twice
+let id: Item? = self.inventory[sku]?.id
 let price: Price? = self.inventory[sku]?.price
-let stock: Int = self.inventory[sku]?.stock ?? 0
+```
 
-// good — one access reads and writes the entry
-self.counts[key, default: 0] += 1
+When mutating collections, it is critically important to hash as few times as exclusivity allows — finalizers often perform even more work than read-only accessors do. The idiomatic pattern to internalize here is the **immediately-executed inout closure**.
 
-// bad — one lookup to read, another to write
-self.counts[key] = (self.counts[key] ?? 0) + 1
 
-// good — visits each entry in place
-for i: [UserID: Session].Index in self.sessions.values.indices {
-    self.sessions.values[i].expire(before: now)
+```swift
+// good — mutating an optional value
+{
+    switch consume $0 {
+    case nil:
+        $0 = nil
+
+    case var value?:
+        // do some mutation
+        $0 = value
+    }
+} (&table[id])
+
+// good — mutating a value with a default state
+try {
+    // do some mutation
+    try $0.sync()
+    try $0.turn()
+} (&table[id, default: .empty])
+```
+
+
+#### Mutating entire collections in-place
+
+When mutating collection elements in a loop, don’t cross subscript boundaries multiple times. Call the subscript once, as you would when mutating a dictionary value.
+
+```swift
+// good — does not cross subscript multiple times
+for i: Int in list {
+    try {
+        try $0.foo()
+        try $0.bar()
+    } (&list[i])
 }
 
-// bad — hashes each key again, to find the entry it came from
-for id: UserID in self.sessions.keys {
-    self.sessions[id]?.expire(before: now)
+// bad — bind the `list[i]` to an `inout` value instead
+for i: Int in list {
+    try list[i].foo()
+    try list[i].bar()
 }
 ```
+
+The standard library `Dictionary` type requires special care — its `indices` property holds a reference to the underlying dictionary storage, so mutating it with a `for` loop actually copies the backing storage instead of mutating it in-place.
+
+```swift
+// good - uses index manipulation to sidestep the copy-on-write pitfall
+var i: [String: Int].Index = dictionary.startIndex
+while i < dictionary.endIndex {
+    dictionary.values[i].sync()
+    i = dictionary.index(after: i)
+}
+
+// bad — this will copy the dictionary storage
+for i: [String: Int].Index in dictionary.indices {
+    dictionary.values[i].sync()
+}
+```
+
+This is a specific defect of `Dictionary` and `Set`, other collections like `Array` and `OrderedDictionary` do not have this problem.
 
 
 ### String processing
