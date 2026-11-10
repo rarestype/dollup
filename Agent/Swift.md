@@ -892,6 +892,90 @@ let primary: Vector3? = orbit.flatMap { positions[$0.orbits]?.about }
 ```
 
 
+### Accessing values
+
+Great Swift code emphasizes value types, which are manipulated in accordance with value semantics. Central to the value paradigm is the **in-place mutation**, which is easy to do wrong if you don’t know the right patterns.
+
+#### Look up each key once
+
+Subscripts in Swift look cheap, but aren’t, particularly if the collection is a hashed one. String-keyed dictionaries are especially heavyweight, as they may perform Unicode normalization on every access. However, even contiguously-indexed collections can be problematic if they lack `@_semantics` annotations, which is frequently the case for custom collection types.
+
+When reading multiple values from a collection element, bind the element to a local variable first, if it doesn’t retain any buffers that might be copied-on-write by a subsequent mutation in the same scope. Otherwise, use a `map` or (less commonly) an immediately-executed closure to extract the relevant fields.
+
+```swift
+// good — uses an `Optional.map` to perform one lookup
+let entry: (id: Item, price: Price?)? = self.inventory[sku].map { ($0.id, $0.price) }
+// good — uses an immediately-executed closure (less common)
+let item: (id: Item, price: Price?) = { ($0.id, $0.price) } (self.list[i])
+
+// bad — the same key is hashed twice
+let id: Item? = self.inventory[sku]?.id
+let price: Price? = self.inventory[sku]?.price
+```
+
+When mutating collections, it is critically important to hash as few times as exclusivity allows — finalizers often perform even more work than read-only accessors do. The idiomatic pattern to internalize here is the **immediately-executed inout closure**.
+
+```swift
+// good — mutating an optional value
+{
+    switch consume $0 {
+    case nil:
+        $0 = nil
+
+    case var value?:
+        // do some mutation
+        $0 = value
+    }
+} (&table[id])
+
+// good — mutating a value with a default state
+try {
+    // do some mutation
+    try $0.sync()
+    try $0.turn()
+} (&table[id, default: .empty])
+```
+
+
+#### Mutating entire collections in-place
+
+When mutating collection elements in a loop, don’t cross subscript boundaries multiple times. Call the subscript once, as you would when mutating a dictionary value.
+
+```swift
+// good — does not cross subscript multiple times
+for i: Int in list.indices {
+    try {
+        try $0.foo()
+        try $0.bar()
+    } (&list[i])
+}
+
+// bad — bind the `list[i]` to an `inout` value instead
+for i: Int in list.indices {
+    try list[i].foo()
+    try list[i].bar()
+}
+```
+
+The standard library `Dictionary` type requires special care — its `indices` and `values.indices` properties hold a reference to the underlying dictionary storage, so mutating it with a `for` loop actually copies the backing storage instead of mutating it in-place.
+
+```swift
+// good — uses index manipulation to sidestep the copy-on-write pitfall
+var i: [UserID: Session].Index = dictionary.startIndex
+while i < dictionary.endIndex {
+    dictionary.values[i].sync()
+    i = dictionary.index(after: i)
+}
+
+// bad — this will copy the dictionary storage
+for i: [UserID: Session].Index in dictionary.indices {
+    dictionary.values[i].sync()
+}
+```
+
+This is a specific defect of `Dictionary`; other collections like `Array` and `OrderedDictionary` do not have this problem.
+
+
 ### String processing
 
 Most Swift code in the wild processes strings by counting characters, which is the main reason this section exists. Counting is the habit to unlearn: an index should come from a search, a standard library method, or a regex match. An offset counted from the length of a literal is only acceptable when the characters it skips are checked against that literal right where it is used.
@@ -1191,6 +1275,32 @@ Your human teammate may occasionally assign you code review responsibilities. Co
 3. Style guide compliance
 
 You will usually be tasked with executing only one of these three procedures at a time — other team members will handle the others.
+
+Whichever procedure you are executing, the checks below apply to it.
+
+### Run the branch, don’t just read it
+
+Reading a diff tells you what the code says, not what it does. Build both the branch and the base branch, and compare what each one does on real inputs. The best inputs are ones the base branch already handles correctly, such as code that a formatter on `master` leaves unchanged, because then every difference comes from the branch, and you can judge each difference on its own. Run the branch on its own output too, which should come out unchanged. Then write a few small inputs for the edge cases that the branch’s tests skip, like comments next to the syntax it moves.
+
+When something about the output looks wrong, find out whether the base branch does the same thing before you blame the branch. A review comment about existing behavior belongs in an issue, not on someone else’s pull request.
+
+If other pull requests are open against the same code, merge them together in a scratch branch, and run the tests on the result. Report conflicts, and say which order of merging would be easiest.
+
+### Check the description against the diff
+
+A pull request’s title and description should say what the code does. If the code does more or less than that, say so. The reader of the history is relying on the description, and so is anyone reviewing the branch after you. Check that the code addresses each earlier review comment, and point out any that are still open.
+
+### Verify what you suggest
+
+If you suggest a change to the code, apply it to a scratch copy and run the tests first, and say that you did. Take every file and line number you cite from the code itself, not from memory, and check them once more before you post the review.
+
+### Check claims against the source
+
+Claims about build configuration, complexity, or which API the code now uses are easy to get wrong, and easy to check. Before you post one, read the code or the documentation that settles it. When the author makes one, check it the same way, rather than trusting the summary. A flag that is on by default, or a method documented as O(*n*), can quietly turn a correct-sounding explanation into a wrong one.
+
+### Work through one stage at a time
+
+When the stages are shared between a reviewer and an author, keep to one stage at a time. The reviewer names the commit the review covers, and asks the author to hold new commits until it is posted. The author answers each point, either agreeing and pushing a fix, or disagreeing and saying why. The reviewer checks the fix before posting the next stage. Before replying, read back through the conversation for posts that arrived in the meantime, since replies that cross each other cost a round each.
 
 ### Architectural review
 
