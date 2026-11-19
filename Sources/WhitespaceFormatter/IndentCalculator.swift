@@ -530,6 +530,22 @@ class IndentCalculator: SyntaxVisitor {
         return .skipChildren
     }
 
+    override func visit(_ node: LabeledExprSyntax) -> SyntaxVisitorContinueKind {
+        // a run of ternaries on its own line after a label is indented one level past it
+        guard
+        let colon: TokenSyntax = node.colon,
+        node.expression.isTernaryRun,
+        !node.expression.lacksPrecedingNewline else {
+            return .visitChildren
+        }
+        self.walkIfPresent(node.label)
+        self.walk(colon)
+        self.indent(after: colon)
+        self.walk(node.expression)
+        self.deindent(at: node.expression.endPosition)
+        self.walkIfPresent(node.trailingComma)
+        return .skipChildren
+    }
     override func visit(_ node: GenericWhereClauseSyntax) -> SyntaxVisitorContinueKind {
         // in barbie’s dollup, the `where` keyword is allowed to appear on a new line,
         // and also introduces a new indentation level

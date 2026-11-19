@@ -193,6 +193,15 @@ class LineExpander: SyntaxVisitor {
         }
         return .visitChildren
     }
+    override func visit(_ node: LabeledExprSyntax) -> SyntaxVisitorContinueKind {
+        // a run of ternaries after a label starts on its own line, so its arms align
+        if  case _? = node.colon,
+            node.expression.isTernaryRun,
+            node.expression.lacksPrecedingNewline {
+            self.break(before: node.expression)
+        }
+        return .visitChildren
+    }
     override func visit(_ node: FunctionCallExprSyntax) -> SyntaxVisitorContinueKind {
         if  let leftParen: TokenSyntax = node.leftParen,
             let rightParen: TokenSyntax = node.rightParen {

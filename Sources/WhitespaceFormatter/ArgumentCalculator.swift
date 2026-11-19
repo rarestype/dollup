@@ -9,7 +9,9 @@ final class ArgumentCalculator: SyntaxVisitor {
     }
 
     override func visit(_ node: LabeledExprSyntax) -> SyntaxVisitorContinueKind {
-        if  let _: TokenSyntax = node.colon, !node.expression.lacksPrecedingNewline {
+        if  let _: TokenSyntax = node.colon,
+           !node.expression.lacksPrecedingNewline,
+           !node.expression.isTernaryRun {
             self.movable[node.expression.positionAfterSkippingLeadingTrivia] = true
         }
         if  let trailingComma: TokenSyntax = node.trailingComma,
