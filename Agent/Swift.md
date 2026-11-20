@@ -584,17 +584,24 @@ struct User {
 }
 ```
 
-Computed predicates that classify a value as a noun are a separate case. If a verb phrase fits naturally, prefer it (`containsInteriorNewlines`, `foldsEmpty`). Otherwise, keep the `is`-prefix when dropping it would make the property read like a getter returning that noun rather than a `Bool` — unless callers actually want the extracted value, in which case return an optional instead.
+Keep an `is`-prefix only when the name is a noun phrase for a kind of thing the value could contain, so that without the prefix it would read as a getter for that thing. Prefer a verb phrase (`containsInteriorNewlines`, `foldsEmpty`) where one fits; and if callers actually want the contained value, return an optional instead of a boolean.
 
 ```swift
-extension Trivia {
-    // good — `trivia.whitespace` would read like a getter returning the whitespace pieces
-    var isWhitespace: Bool { self.allSatisfy(\.isWhitespace) }
-}
-extension ExprSyntax {
-    // good — `expression.ternaryRun` would read like a getter returning a `TernaryRun?`
-    var isTernaryRun: Bool { ... }
-}
+// good — text contains sentences; `text.completeSentence` would read as one of them
+var isCompleteSentence: Bool
+// good — trivia contains whitespace; `trivia.whitespace` would read as the whitespace pieces
+var isWhitespace: Bool
+// good — an expression can contain a ternary run
+var isTernaryRun: Bool
+
+// bad — adjectives and participles already read as true or false, even when they could
+// also read as a transformation
+var isCapitalized: Bool   // capitalized
+var isTargeted: Bool      // targeted
+// bad — role nouns read as true or false too
+var isAdmin: Bool         // admin
+// bad — the noun restates the receiver’s type; name the modifier, or model it as data
+var isNewUser: Bool       // new, or `joined: Date`
 ```
 
 Protocol witnesses to requirements that already carry an `is`- or `has`-prefix, such as ``Collection.isEmpty``, are also exempt. Don’t vend `empty` as a property forwarded by an `isEmpty` shim just to satisfy the protocol; implement `isEmpty` directly.
