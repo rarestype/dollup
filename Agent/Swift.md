@@ -584,7 +584,20 @@ struct User {
 }
 ```
 
-The main exception to this rule is witnesses to protocols that declare `is`- or `has`-prefixed requirements. A common example is ``Collection.isEmpty``. Don’t vend `empty` as a property forwarded by an `isEmpty` shim just to satisfy the protocol; just implement `isEmpty` directly. This only applies to standard library protocols. For APIs we design ourselves, avoid `is`- and `has`-prefixed names entirely.
+Computed predicates that classify a value as a noun are a separate case. If a verb phrase fits naturally, prefer it (`containsInteriorNewlines`, `foldsEmpty`). Otherwise, keep the `is`-prefix when dropping it would make the property read like a getter returning that noun rather than a `Bool` — unless callers actually want the extracted value, in which case return an optional instead.
+
+```swift
+extension Trivia {
+    // good — `trivia.whitespace` would read like a getter returning the whitespace pieces
+    var isWhitespace: Bool { self.allSatisfy(\.isWhitespace) }
+}
+extension ExprSyntax {
+    // good — `expression.ternaryRun` would read like a getter returning a `TernaryRun?`
+    var isTernaryRun: Bool { ... }
+}
+```
+
+Protocol witnesses to requirements that already carry an `is`- or `has`-prefix, such as ``Collection.isEmpty``, are also exempt. Don’t vend `empty` as a property forwarded by an `isEmpty` shim just to satisfy the protocol; implement `isEmpty` directly.
 
 #### Boolean case indicators
 
