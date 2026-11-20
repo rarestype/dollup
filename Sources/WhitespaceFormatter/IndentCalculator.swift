@@ -534,8 +534,8 @@ class IndentCalculator: SyntaxVisitor {
         // a run of ternaries on its own line after a label is indented one level past it
         guard
         let colon: TokenSyntax = node.colon,
-        node.expression.isTernaryRun,
-        !node.expression.lacksPrecedingNewline else {
+        !node.expression.lacksPrecedingNewline,
+        node.expression.isTernaryRun else {
             return .visitChildren
         }
         self.walkIfPresent(node.label)

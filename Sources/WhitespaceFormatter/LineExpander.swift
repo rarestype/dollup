@@ -196,8 +196,8 @@ class LineExpander: SyntaxVisitor {
     override func visit(_ node: LabeledExprSyntax) -> SyntaxVisitorContinueKind {
         // a run of ternaries after a label starts on its own line, so its arms align
         if  case _? = node.colon,
-            node.expression.isTernaryRun,
-            node.expression.lacksPrecedingNewline {
+            node.expression.lacksPrecedingNewline,
+            node.expression.isTernaryRun {
             self.break(before: node.expression)
         }
         return .visitChildren
