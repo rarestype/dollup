@@ -218,7 +218,19 @@ class LineExpander: SyntaxVisitor {
     }
 
     override func visit(_ node: SubscriptCallExprSyntax) -> SyntaxVisitorContinueKind {
-        self.expand(arguments: node.arguments, between: (node.leftSquare, node.rightSquare))
+        // subscript arguments stay together on one line, like the arguments of an attribute
+        guard !node.arguments.isEmpty,
+        node.arguments.containsInteriorNewlines(
+            between: (node.leftSquare, node.rightSquare)
+        ) else {
+            return .visitChildren
+        }
+        if  node.arguments.lacksPrecedingNewline {
+            self.break(before: node.arguments)
+        }
+        if  node.rightSquare.lacksPrecedingNewline {
+            self.break(before: node.rightSquare)
+        }
         return .visitChildren
     }
 
