@@ -377,6 +377,35 @@ import WhitespaceFormatter
 
         #expect(try self.egyptian(input) == egyptian + "\n")
     }
+    @Test static func ArrayTypes() throws {
+        let input: String = """
+        let a: [(
+            x: Int,
+            y: Int
+        )] = []
+        let b: [String: (
+            x: Int,
+            y: Int
+        )] = [:]
+        """
+        let expected: String = """
+        let a: [
+            (
+                x: Int,
+                y: Int
+            )
+        ] = []
+        let b: [
+            String: (
+                x: Int,
+                y: Int
+            )
+        ] = [:]
+        """
+
+        #expect(try self.egyptian(input) == expected + "\n")
+        #expect(try self.allman(input) == expected + "\n")
+    }
     @Test static func Strings() throws {
         let input: String = #"""
         let z1: String = """

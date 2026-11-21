@@ -89,6 +89,28 @@ class LineExpander: SyntaxVisitor {
         }
         return .visitChildren
     }
+    override func visit(_ node: ArrayTypeSyntax) -> SyntaxVisitorContinueKind {
+        if  node.containsInteriorNewlines {
+            if  node.element.lacksPrecedingNewline {
+                self.break(before: node.element)
+            }
+            if  node.rightSquare.lacksPrecedingNewline {
+                self.break(before: node.rightSquare)
+            }
+        }
+        return .visitChildren
+    }
+    override func visit(_ node: DictionaryTypeSyntax) -> SyntaxVisitorContinueKind {
+        if  node.containsInteriorNewlines {
+            if  node.key.lacksPrecedingNewline {
+                self.break(before: node.key)
+            }
+            if  node.rightSquare.lacksPrecedingNewline {
+                self.break(before: node.rightSquare)
+            }
+        }
+        return .visitChildren
+    }
     override func visit(_ node: DictionaryExprSyntax) -> SyntaxVisitorContinueKind {
         if  case .elements(let elements) = node.content, node.containsInteriorNewlines {
             if  elements.lacksPrecedingNewline {
