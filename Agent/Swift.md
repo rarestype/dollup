@@ -584,24 +584,23 @@ struct User {
 }
 ```
 
-Keep an `is`-prefix only when the name is a noun phrase for a kind of thing the value could contain, so that without the prefix it would read as a getter for that thing. Prefer a verb phrase (`containsInteriorNewlines`, `foldsEmpty`) where one fits; and if callers actually want the contained value, return an optional instead of a boolean.
+For computed predicates, prefer omitting `is`- (or using a verb phrase such as `containsInteriorNewlines` or `foldsEmpty`), and pause to check whether an enum, optional, or underlying value models the concept better. That said, there is no hard-and-fast rule for every computed boolean: an `is`-prefix is fine when dropping it makes the name read awkwardly or ambiguously at the call site.
 
 ```swift
-// good — text contains sentences; `text.completeSentence` would read as one of them
+// good — bare names here read awkwardly or like getters for a value rather than a `Bool`
 var isCompleteSentence: Bool
-// good — trivia contains whitespace; `trivia.whitespace` would read as the whitespace pieces
 var isWhitespace: Bool
-// good — an expression can contain a ternary run
 var isTernaryRun: Bool
+var isLeapYear: Bool
 
-// bad — adjectives and participles already read as true or false, even when they could
-// also read as a transformation
+// bad — adjectives, participles, and role nouns read as true or false on their own
 var isCapitalized: Bool   // capitalized
 var isTargeted: Bool      // targeted
-// bad — role nouns read as true or false too
 var isAdmin: Bool         // admin
-// bad — the noun restates the receiver’s type; name the modifier, or model it as data
-var isNewUser: Bool       // new, or `joined: Date`
+
+// bad — usually better as an adjective, enum case, or underlying data
+var isGasGiant: Bool      // `case .gasGiant = planet.type`
+var isNewUser: Bool       // `new`, or `joined: Date`
 ```
 
 Protocol witnesses to requirements that already carry an `is`- or `has`-prefix, such as ``Collection.isEmpty``, are also exempt. Don’t vend `empty` as a property forwarded by an `isEmpty` shim just to satisfy the protocol; implement `isEmpty` directly.
