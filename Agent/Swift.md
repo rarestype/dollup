@@ -584,7 +584,26 @@ struct User {
 }
 ```
 
-The main exception to this rule is witnesses to protocols that declare `is`- or `has`-prefixed requirements. A common example is ``Collection.isEmpty``. Don’t vend `empty` as a property forwarded by an `isEmpty` shim just to satisfy the protocol; just implement `isEmpty` directly. This only applies to standard library protocols. For APIs we design ourselves, avoid `is`- and `has`-prefixed names entirely.
+For computed predicates, prefer omitting `is`- (or using a verb phrase such as `containsInteriorNewlines` or `foldsEmpty`), and pause to check whether an enum, optional, or underlying value models the concept better. That said, there is no hard-and-fast rule for every computed boolean: an `is`-prefix is fine when dropping it makes the name read awkwardly or ambiguously at the call site. Still avoid `has`-prefixes in APIs we design ourselves.
+
+```swift
+// good — bare names here read awkwardly or like getters for a value rather than a `Bool`
+var isCompleteSentence: Bool
+var isWhitespace: Bool
+var isTernaryRun: Bool
+var isLeapYear: Bool
+
+// bad — adjectives, participles, and role nouns read as true or false on their own
+var isCapitalized: Bool   // capitalized
+var isTargeted: Bool      // targeted
+var isAdmin: Bool         // admin
+
+// bad — usually better as an adjective, enum case, or underlying data
+var isGasGiant: Bool      // `case .gasGiant = planet.type`
+var isNewUser: Bool       // `new`, or `joined: Date`
+```
+
+Witnesses to standard library or third-party protocols that declare `is`- or `has`-prefixed requirements, such as ``Collection.isEmpty``, are also exempt. Don’t vend `empty` as a property forwarded by an `isEmpty` shim just to satisfy the protocol; implement `isEmpty` directly.
 
 #### Boolean case indicators
 
