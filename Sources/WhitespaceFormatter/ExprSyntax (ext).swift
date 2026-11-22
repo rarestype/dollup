@@ -117,7 +117,10 @@ extension ExprSyntax {
     /// Whether the line wrapper can break a closure that is still on one line, which it
     /// cannot if the closure is an empty `{}`.
     private static func makesRoom(closure: ClosureExprSyntax) -> Bool {
-        (!closure.statements.isEmpty || closure.signature != nil) &&
-        !closure.containsInteriorNewlines
+        if  closure.statements.isEmpty,
+            case nil = closure.signature {
+            return false
+        }
+        return !closure.containsInteriorNewlines
     }
 }

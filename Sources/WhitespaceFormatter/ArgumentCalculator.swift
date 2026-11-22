@@ -36,7 +36,11 @@ final class ArgumentCalculator: SyntaxVisitor {
             return .visitChildren
         }
         switch first.tokenKind {
-        case .leftSquare, .leftParen, .leftBrace, .multilineStringQuote, .rawStringPoundDelimiter:
+        case .leftSquare,
+            .leftParen,
+            .leftBrace,
+            .multilineStringQuote,
+            .rawStringPoundDelimiter:
             // a value that starts with a bracket or a multiline string that spans lines is left
             // to the brace style
             if  node.value.containsInteriorNewlines {
@@ -51,11 +55,11 @@ final class ArgumentCalculator: SyntaxVisitor {
         // wrapper can make room for it by breaking brackets: those of the value first, or
         // otherwise those of a tuple, array, or dictionary annotation, after whose closing
         // bracket the value would then have to fit, as in `) = value`
-        if  line.declaration + 1 + line.value <= self.width ||
-            node.value.makesRoom || (
-                node.breakableAnnotation != nil &&
-                line.indent + 4 + line.value <= self.width
-            ) {
+        if  line.declaration + 1 + line.value <= self.width || node.value.makesRoom {
+            self.movable[first.positionAfterSkippingLeadingTrivia] = true
+        } else if
+            case _? = node.breakableAnnotation,
+            line.indent + 4 + line.value <= self.width {
             self.movable[first.positionAfterSkippingLeadingTrivia] = true
         }
         return .visitChildren
