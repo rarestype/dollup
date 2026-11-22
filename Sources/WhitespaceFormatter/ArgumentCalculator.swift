@@ -27,7 +27,10 @@ final class ArgumentCalculator: SyntaxVisitor {
         return .visitChildren
     }
     override func visit(_ node: InitializerClauseSyntax) -> SyntaxVisitorContinueKind {
-        guard
+        // a comment after the `=` stays where it is, and a run of ternaries keeps its arms
+        // aligned on lines of their own
+        guard node.equal.trailingTrivia.isWhitespace,
+        !node.value.isTernaryRun,
         let first: TokenSyntax = node.value.firstToken(viewMode: .sourceAccurate),
             first.leadingTrivia.containsNewlines else {
             return .visitChildren
@@ -42,16 +45,28 @@ final class ArgumentCalculator: SyntaxVisitor {
         default:
             break
         }
+
+        let line: (indent: Int, declaration: Int, value: Int) = self.measure(node)
         // a value moves up onto the line of its `=` if the joined line fits, or if the line
-        // wrapper can make room for it by breaking brackets
-        if  self.fits(joining: node) || node.annotationMakesRoom || node.value.makesRoom {
+        // wrapper can make room for it by breaking brackets: those of the value first, or
+        // otherwise those of a tuple, array, or dictionary annotation, after whose closing
+        // bracket the value would then have to fit, as in `) = value`
+        if  line.declaration + 1 + line.value <= self.width ||
+            node.value.makesRoom || (
+                node.breakableAnnotation != nil &&
+                line.indent + 4 + line.value <= self.width
+            ) {
             self.movable[first.positionAfterSkippingLeadingTrivia] = true
         }
         return .visitChildren
     }
 }
 extension ArgumentCalculator {
-    private func fits(joining node: InitializerClauseSyntax) -> Bool {
+    /// Measures the indentation of the line of the `=`, its length up to and including the
+    /// `=`, and the length of the first line of the value.
+    private func measure(
+        _ node: InitializerClauseSyntax
+    ) -> (indent: Int, declaration: Int, value: Int) {
         let utf8: String.UTF8View = self.text.utf8
         let equal: String.Index = utf8.index(
             utf8.startIndex,
@@ -67,7 +82,11 @@ extension ArgumentCalculator {
         let end: String.Index = self.text[value...].firstIndex(where: \.isNewline)
             ?? self.text.endIndex
 
-        let joined: Int = self.text[start ..< equal].count + 1 + self.text[value ..< end].count
-        return joined <= self.width
+        let declaration: Substring = self.text[start ..< equal]
+        return (
+            indent: declaration.prefix(while: \.isWhitespace).count,
+            declaration: declaration.count,
+            value: self.text[value ..< end].count
+        )
     }
 }

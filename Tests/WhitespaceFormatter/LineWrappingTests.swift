@@ -415,6 +415,30 @@ import WhitespaceFormatter
 
         try #expect(WhitespaceFormatter.reformat(input, width: 40) == expected + "\n")
     }
+    @Test static func InitializerKept() throws {
+        ///                                     | +40
+        let input: String = """
+        let a: Int = // thirteen
+            13
+        let b: Direction =
+            p ? .up :
+            q ? .down : nil
+        let c: (Int, Int) =
+            aaaaaaaaaaaaaa + bbbbbbbbbbbbbbbbbbbbbbb
+        """
+        ///                                     | +40
+        let expected: String = """
+        let a: Int = // thirteen
+        13
+        let b: Direction =
+        p ? .up :
+        q ? .down : nil
+        let c: (Int, Int) =
+        aaaaaaaaaaaaaa + bbbbbbbbbbbbbbbbbbbbbbb
+        """
+
+        try #expect(WhitespaceFormatter.reformat(input, width: 40) == expected + "\n")
+    }
     @Test static func InitializerJoinedAfterWrapping() throws {
         ///                                     | +40
         let input: String = """
