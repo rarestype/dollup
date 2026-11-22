@@ -377,6 +377,84 @@ import WhitespaceFormatter
 
         #expect(try self.egyptian(input) == egyptian + "\n")
     }
+    @Test static func ArrayTypes() throws {
+        let input: String = """
+        let a: [(
+            x: Int,
+            y: Int
+        )] = []
+        let b: [String: (
+            x: Int,
+            y: Int
+        )] = [:]
+        let c: [String:
+        (
+            x: Int,
+            y: Int
+        )] = [:]
+        let d: [(
+            x: Int,
+            y: Int
+        ): String] = [:]
+        """
+        let expected: String = """
+        let a: [
+            (
+                x: Int,
+                y: Int
+            )
+        ] = []
+        let b: [
+            String: (
+                x: Int,
+                y: Int
+            )
+        ] = [:]
+        let c: [
+            String: (
+                x: Int,
+                y: Int
+            )
+        ] = [:]
+        let d: [
+            (
+                x: Int,
+                y: Int
+            ): String
+        ] = [:]
+        """
+        // allman keeps the opening bracket of a dictionary type’s value on its own line
+        let allman: String = """
+        let a: [
+            (
+                x: Int,
+                y: Int
+            )
+        ] = []
+        let b: [
+            String: (
+                x: Int,
+                y: Int
+            )
+        ] = [:]
+        let c: [
+            String:
+            (
+                x: Int,
+                y: Int
+            )
+        ] = [:]
+        let d: [
+            (
+                x: Int,
+                y: Int
+            ): String
+        ] = [:]
+        """
+
+        #expect(try self.egyptian(input) == expected + "\n")
+        #expect(try self.allman(input) == allman + "\n")
+    }
     @Test static func Strings() throws {
         let input: String = #"""
         let z1: String = """

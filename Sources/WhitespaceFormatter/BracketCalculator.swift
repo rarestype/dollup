@@ -132,6 +132,15 @@ extension BracketCalculator {
         var element: Syntax? = token.parent
 
         while let parent: Syntax = element?.parent, !parent.kind.isSyntaxCollection {
+            // the element of a sugared array type, or the key of a sugared dictionary type,
+            // stands on its own line, like an element of a collection literal
+            if  parent.is(ArrayTypeSyntax.self) {
+                break
+            }
+            if  let dictionary: DictionaryTypeSyntax = parent.as(DictionaryTypeSyntax.self),
+                case dictionary.key.id? = element?.id {
+                break
+            }
             element = parent
         }
 
