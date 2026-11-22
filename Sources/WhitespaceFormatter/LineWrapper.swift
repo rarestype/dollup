@@ -223,35 +223,20 @@ class LineWrapper: SyntaxVisitor {
         case nil:
             // arguments on a line of their own go one per line only if that line is still
             // too long
-            guard !arguments.lacksPrecedingNewline,
-            case true? = self.limitViolated(by: arguments, tier: .decorator) else {
+            switch arguments {
+            case .argumentList(let arguments):
+                return self.split(arguments, tier: .decorator)
+            case .availability(let arguments):
+                return self.split(arguments, tier: .decorator)
+            case .documentationArguments(let arguments):
+                return self.split(arguments, tier: .decorator)
+            case .specializeArguments(let arguments):
+                return self.split(arguments, tier: .decorator)
+            default:
+                // a single argument has nothing to separate, but may be breakable inside
                 return .visitChildren
             }
         }
-
-        switch arguments {
-        case .argumentList(let arguments):
-            for argument: LabeledExprSyntax in arguments.dropLast() {
-                self.break(after: argument)
-            }
-        case .availability(let arguments):
-            for argument: AvailabilityArgumentSyntax in arguments.dropLast() {
-                self.break(after: argument)
-            }
-        case .documentationArguments(let arguments):
-            for argument: DocumentationAttributeArgumentSyntax in arguments.dropLast() {
-                self.break(after: argument)
-            }
-        case .specializeArguments(let arguments):
-            for argument: SpecializeAttributeArgumentListSyntax.Element in arguments.dropLast() {
-                self.break(after: argument)
-            }
-        default:
-            // a single argument has nothing to separate
-            break
-        }
-
-        return .skipChildren
     }
     override func visit(_ node: ClosureParameterClauseSyntax) -> SyntaxVisitorContinueKind {
         if node.parameters.isEmpty {
@@ -532,17 +517,28 @@ extension LineWrapper {
         case nil:
             // subscript arguments on a line of their own go one per line only if that line is
             // still too long
-            if  case .subscript = tier,
-               !arguments.lacksPrecedingNewline,
-                case true? = self.limitViolated(by: arguments, tier: tier) {
-                for argument: LabeledExprSyntax in arguments.dropLast() {
-                    self.break(after: argument)
-                }
-                return .skipChildren
+            if  case .subscript = tier {
+                return self.split(arguments, tier: tier)
             } else {
                 return .visitChildren
             }
         }
+    }
+    /// Breaks between the elements of a list that starts a line of its own, if that line is
+    /// still too long and the list has more than one element.
+    private func split<List>(
+        _ list: List,
+        tier: LinebreakTier
+    ) -> SyntaxVisitorContinueKind where List: SyntaxCollection {
+        guard list.count > 1,
+        !list.lacksPrecedingNewline,
+        case true? = self.limitViolated(by: list, tier: tier) else {
+            return .visitChildren
+        }
+        for element: List.Element in list.dropLast() {
+            self.break(after: element)
+        }
+        return .skipChildren
     }
 
     private func limitViolated(by node: some SyntaxProtocol, tier: LinebreakTier) -> Bool? {
