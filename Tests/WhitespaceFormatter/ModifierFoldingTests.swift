@@ -190,8 +190,6 @@ import WhitespaceFormatter
 
         #expect(try self.format(input) == expected + "\n")
     }
-}
-extension ModifierFoldingTests {
     @Test static func WrappedAttribute() throws {
         let input: String = """
         @available(iOS 13, macOS 10.15, tvOS 13, watchOS 6, visionOS 1, message: "use the other one, please")
@@ -205,7 +203,8 @@ extension ModifierFoldingTests {
 
         #expect(try self.format(input) == expected + "\n")
     }
-
+}
+extension ModifierFoldingTests {
     private static func format(_ input: consuming String) throws -> String {
         let formatter: WhitespaceFormatter = .init { $0.foldKeywords = true }
         var input: String = input
