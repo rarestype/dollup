@@ -53,50 +53,49 @@ extension ExprSyntax {
 extension ExprSyntax {
     /// Whether the line wrapper can break this expression at brackets of its own that are
     /// still on one line: a call, subscript, or macro expansion with arguments or a trailing
-    /// closure, a non-empty array, dictionary, or tuple literal, or a closure, possibly marked
-    /// with `try` or `await`.
+    /// closure, a non-empty array, dictionary, or tuple literal, or a closure that is not an
+    /// empty `{}`, possibly marked with `try`, `await`, or `unsafe`.
     var makesRoom: Bool {
-        if  let expression: TryExprSyntax = self.as(TryExprSyntax.self) {
+        switch self.as(ExprSyntaxEnum.self) {
+        case .tryExpr(let expression):
             return expression.expression.makesRoom
-        }
-        if  let expression: AwaitExprSyntax = self.as(AwaitExprSyntax.self) {
+        case .awaitExpr(let expression):
             return expression.expression.makesRoom
-        }
-        if  let call: FunctionCallExprSyntax = self.as(FunctionCallExprSyntax.self) {
+        case .unsafeExpr(let expression):
+            return expression.expression.makesRoom
+        case .functionCallExpr(let call):
             return Self.makesRoom(
                 arguments: call.arguments,
                 between: (call.leftParen, call.rightParen),
                 trailingClosure: call.trailingClosure
             )
-        }
-        if  let call: SubscriptCallExprSyntax = self.as(SubscriptCallExprSyntax.self) {
+        case .subscriptCallExpr(let call):
             return Self.makesRoom(
                 arguments: call.arguments,
                 between: (call.leftSquare, call.rightSquare),
                 trailingClosure: call.trailingClosure
             )
-        }
-        if  let call: MacroExpansionExprSyntax = self.as(MacroExpansionExprSyntax.self) {
+        case .macroExpansionExpr(let call):
             return Self.makesRoom(
                 arguments: call.arguments,
                 between: (call.leftParen, call.rightParen),
                 trailingClosure: call.trailingClosure
             )
-        }
-        if  let literal: ArrayExprSyntax = self.as(ArrayExprSyntax.self) {
+        case .arrayExpr(let literal):
             return !literal.elements.isEmpty && !literal.containsInteriorNewlines
-        }
-        if  let literal: DictionaryExprSyntax = self.as(DictionaryExprSyntax.self),
-            case .elements = literal.content {
-            return !literal.containsInteriorNewlines
-        }
-        if  let literal: TupleExprSyntax = self.as(TupleExprSyntax.self) {
+        case .dictionaryExpr(let literal):
+            if  case .elements = literal.content {
+                return !literal.containsInteriorNewlines
+            } else {
+                return false
+            }
+        case .tupleExpr(let literal):
             return !literal.elements.isEmpty && !literal.containsInteriorNewlines
+        case .closureExpr(let closure):
+            return Self.makesRoom(closure: closure)
+        default:
+            return false
         }
-        if  let closure: ClosureExprSyntax = self.as(ClosureExprSyntax.self) {
-            return !closure.containsInteriorNewlines
-        }
-        return false
     }
 
     private static func makesRoom(
@@ -111,8 +110,14 @@ extension ExprSyntax {
             return true
         }
         if  let closure: ClosureExprSyntax = trailingClosure {
-            return !closure.containsInteriorNewlines
+            return Self.makesRoom(closure: closure)
         }
         return false
+    }
+    /// Whether the line wrapper can break a closure that is still on one line, which it
+    /// cannot if the closure is an empty `{}`.
+    private static func makesRoom(closure: ClosureExprSyntax) -> Bool {
+        (!closure.statements.isEmpty || closure.signature != nil) &&
+        !closure.containsInteriorNewlines
     }
 }
