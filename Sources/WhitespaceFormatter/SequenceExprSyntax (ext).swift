@@ -27,8 +27,10 @@ extension SequenceExprSyntax {
         switch self.parent?.as(SyntaxEnum.self) {
         case .initializerClause?:
             break
-        case .labeledExpr(let argument)? where argument.colon != nil:
-            break
+        case .labeledExpr(let argument)?:
+            if  case nil = argument.colon {
+                return nil
+            }
         default:
             return nil
         }

@@ -21,10 +21,9 @@ extension ExprSyntax {
     /// `unsafe`) may start the arms only if every arm starts with the same ones, since
     /// otherwise the arms cannot align.
     private static func isTernaryRun(_ elements: some Sequence<ExprSyntax>) -> Bool {
-        /// The markers that start the first arm.
-        var markers: [String]? = nil
-        /// The colon of the ternary that ends the previous arm.
-        var colon: TokenSyntax? = nil
+        /// The colon of the ternary that ends the previous arm, and the markers that start the
+        /// first arm.
+        var previous: (colon: TokenSyntax, markers: [String])? = nil
         /// The first element of the current arm.
         var start: ExprSyntax? = nil
         var chained: Bool = false
@@ -41,17 +40,15 @@ extension ExprSyntax {
                 return false
             }
             let next: [String] = first.effectMarkers
-            if  let colon: TokenSyntax {
+            if  let (colon, markers): (TokenSyntax, [String]) = previous {
                 if  colon.leadingTrivia.containsNewlines ||
                     first.lacksPrecedingNewline ||
                     next != markers {
                     return false
                 }
                 chained = true
-            } else {
-                markers = next
             }
-            colon = ternary.colon
+            previous = (ternary.colon, previous?.markers ?? next)
             start = nil
         }
         return chained
