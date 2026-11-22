@@ -415,6 +415,40 @@ import WhitespaceFormatter
 
         try #expect(WhitespaceFormatter.reformat(input, width: 40) == expected + "\n")
     }
+    @Test static func InitializerJoinedFunctionType() throws {
+        /// A function type breaks like a tuple of its parameter types, in a binding condition
+        /// as well as in a declaration
+        ///                                     | +40
+        let input: String = """
+        let f: (Int, Int) throws -> Int =
+            aaaaa.bbbbb.ccccc
+        let g: @Sendable (Int) -> Int =
+            aaaaa.bbbbb.ccccc
+        guard
+        let h: (Int) -> Int =
+            aaaaa.bbbbb.ccccc else {
+            return
+        }
+        """
+        ///                                     | +40
+        let expected: String = """
+        let f: (
+            Int,
+            Int
+        ) throws -> Int = aaaaa.bbbbb.ccccc
+        let g: @Sendable (
+            Int
+        ) -> Int = aaaaa.bbbbb.ccccc
+        guard
+        let h: (
+            Int
+        ) -> Int = aaaaa.bbbbb.ccccc else {
+            return
+        }
+        """
+
+        try #expect(WhitespaceFormatter.reformat(input, width: 40) == expected + "\n")
+    }
     @Test static func InitializerKept() throws {
         ///                                     | +40
         let input: String = """
@@ -425,6 +459,8 @@ import WhitespaceFormatter
             q ? .down : nil
         let c: (Int, Int) =
             aaaaaaaaaaaaaa + bbbbbbbbbbbbbbbbbbbbbbb
+        let d: (Int) throws -> Long =
+            aaaaa.bbbbb.ccccc.ddddd
         """
         ///                                     | +40
         let expected: String = """
@@ -435,6 +471,8 @@ import WhitespaceFormatter
         q ? .down : nil
         let c: (Int, Int) =
         aaaaaaaaaaaaaa + bbbbbbbbbbbbbbbbbbbbbbb
+        let d: (Int) throws -> Long =
+        aaaaa.bbbbb.ccccc.ddddd
         """
 
         try #expect(WhitespaceFormatter.reformat(input, width: 40) == expected + "\n")
