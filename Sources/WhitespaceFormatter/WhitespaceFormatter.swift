@@ -22,16 +22,10 @@ extension WhitespaceFormatter {
         }
 
         let original: Syntax = source.tree
-        let expander: LineExpander = .init(text: source.text)
-        ;   expander.walk(source.tree)
-
         // it would not make much sense to check for line length violations if the indentation
         // were not correct
-        if  expander.linebreaks.isEmpty {
-            source.update(text: self.reindent(expander.text))
-        } else {
-            let expanded: String = expander.text.insert(linebreaks: expander.linebreaks)
-            source.update(text: self.reindent(expanded), didChange: true)
+        if !self.expand(&source) {
+            source.update(text: self.reindent(source.text))
         }
 
         // this pass assumes the indentation is already correct
@@ -78,6 +72,9 @@ extension WhitespaceFormatter {
                 text: self.reindent(wrapper.text.insert(linebreaks: linebreaks)),
                 didChange: true
             )
+            // wrapping can leave a bracket spanning lines, such as a call whose last argument
+            // now spans lines, which the expander would otherwise only expand on the next run
+            self.expand(&source)
             // after wrapping, a value after `=` may fit on its line, and an attribute whose
             // closing parenthesis now starts a line folds the declaration after it
             if  self.options.foldArguments {
@@ -152,6 +149,21 @@ extension WhitespaceFormatter {
         }
     }
 
+    /// Returns true if the expander added any line breaks, in which case the source has
+    /// already been reindented.
+    @discardableResult
+    private func expand(_ source: inout Source) -> Bool {
+        let expander: LineExpander = .init(text: source.text)
+        ;   expander.walk(source.tree)
+
+        if  expander.linebreaks.isEmpty {
+            return false
+        }
+
+        let expanded: String = expander.text.insert(linebreaks: expander.linebreaks)
+        source.update(text: self.reindent(expanded), didChange: true)
+        return true
+    }
     private func foldArguments(_ source: inout Source) {
         let calculator: ArgumentCalculator = .init(
             text: source.text,

@@ -454,6 +454,26 @@ import WhitespaceFormatter
 
         try #expect(WhitespaceFormatter.reformat(input, width: 40) == expected + "\n")
     }
+    @Test static func ExpandedAfterWrapping() throws {
+        /// Wrapping the last argument makes it span lines, so it moves onto its own line, as
+        /// it would on the next run
+        ///                                     | +40
+        let input: String = """
+        let x: T = f(
+            aaaa: aaaa, bbbb: bbbb, cccc: g(where: c))
+        """
+        ///                                     | +40
+        let expected: String = """
+        let x: T = f(
+            aaaa: aaaa, bbbb: bbbb,
+            cccc: g(
+                where: c
+            )
+        )
+        """
+
+        try #expect(WhitespaceFormatter.reformat(input, width: 40) == expected + "\n")
+    }
     @Test static func StringLiteralLeadingWhitespace() throws {
         let input: String = """
         let x: String = "    foo"
