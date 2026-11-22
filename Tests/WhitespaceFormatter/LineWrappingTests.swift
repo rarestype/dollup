@@ -543,6 +543,26 @@ import WhitespaceFormatter
 
         try #expect(WhitespaceFormatter.reformat(input, width: 30) == expected + "\n")
     }
+    @Test static func StringWithMultilineInterpolationAndPoundDelimiters() throws {
+        /// A multiline raw string literal can contain line breaks, so a call inside one of its
+        /// interpolations can wrap
+        ///                                     | +40
+        let input: String = ##"""
+        let string: String = #"""
+        blah blah \#(f(aaaaaaaa, bbbbbbbbbbbbbbbb))
+        """#
+        """##
+        let expected: String = ##"""
+        let string: String = #"""
+        blah blah \#(f(
+                aaaaaaaa,
+                bbbbbbbbbbbbbbbb
+            ))
+        """#
+        """##
+
+        try #expect(WhitespaceFormatter.reformat(input, width: 40) == expected + "\n")
+    }
     @Test static func StringWithMultilineInterpolation() throws {
         /// This should break the closure, not the subscript arguments
         ///                                                      | +60
