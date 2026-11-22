@@ -398,8 +398,13 @@ class LineWrapper: SyntaxVisitor {
         guard
         case nil = node.openingPounds,
         case nil = node.closingPounds else {
-            // we cannot safely break raw string literals
-            return .visitChildren
+            // we cannot safely break raw string literals, and a single-line string literal
+            // cannot contain a line break, not even inside one of its interpolations
+            if  case .multilineStringQuote = node.openingQuote.tokenKind {
+                return .visitChildren
+            } else {
+                return .skipChildren
+            }
         }
 
         switch self.limitViolated(by: node, tier: .string) {
