@@ -195,7 +195,7 @@ extension ModifierFoldingTests {
     private static func format(_ input: consuming String) throws -> String {
         let formatter: WhitespaceFormatter = .init { $0.foldKeywords = true }
         var input: String = input
-        try formatter.reformat(&input, check: true)
+        try formatter.reformatIdempotently(&input)
         return input
     }
 }

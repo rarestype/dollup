@@ -749,13 +749,13 @@ extension BraceStyleTests {
     private static func egyptian(_ input: consuming String) throws -> String {
         let formatter: WhitespaceFormatter = .init { $0.braces = .egyptian }
         var input: String = input
-        try formatter.reformat(&input, check: true)
+        try formatter.reformatIdempotently(&input)
         return input
     }
     private static func allman(_ input: consuming String) throws -> String {
         let formatter: WhitespaceFormatter = .init { $0.braces = .allman }
         var input: String = input
-        try formatter.reformat(&input, check: true)
+        try formatter.reformatIdempotently(&input)
         return input
     }
 }

@@ -1,3 +1,4 @@
+import Testing
 import WhitespaceFormatter
 
 extension WhitespaceFormatter {
@@ -6,7 +7,9 @@ extension WhitespaceFormatter {
             $0.indent.ifConfig = true
             $0.indent.spaces = indent
         }
-        return formatter.reindent(source)
+        let once: String = formatter.reindent(source)
+        #expect(formatter.reindent(once) == once, "reindenting again changes the output")
+        return once
     }
     static func reformat(
         _ source: consuming String,
@@ -20,7 +23,18 @@ extension WhitespaceFormatter {
             $0.width = width
         }
         var source: String = source
-        try formatter.reformat(&source, check: true)
+        try formatter.reformatIdempotently(&source)
         return source
+    }
+}
+extension WhitespaceFormatter {
+    /// Reformats the source, and records an issue if reformatting the result again would
+    /// change it.
+    func reformatIdempotently(_ source: inout String) throws {
+        try self.reformat(&source, check: true)
+
+        var again: String = source
+        try self.reformat(&again, check: true)
+        #expect(again == source, "reformatting again changes the output")
     }
 }
