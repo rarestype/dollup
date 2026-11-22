@@ -746,16 +746,18 @@ import WhitespaceFormatter
     }
 }
 extension BraceStyleTests {
-    private static func egyptian(_ input: consuming String) throws -> String {
+    private static func egyptian(
+        _ input: consuming String,
+        sourceLocation: SourceLocation = #_sourceLocation
+    ) throws -> String {
         let formatter: WhitespaceFormatter = .init { $0.braces = .egyptian }
-        var input: String = input
-        try formatter.reformat(&input, check: true)
-        return input
+        return try formatter.reformat(input, sourceLocation: sourceLocation)
     }
-    private static func allman(_ input: consuming String) throws -> String {
+    private static func allman(
+        _ input: consuming String,
+        sourceLocation: SourceLocation = #_sourceLocation
+    ) throws -> String {
         let formatter: WhitespaceFormatter = .init { $0.braces = .allman }
-        var input: String = input
-        try formatter.reformat(&input, check: true)
-        return input
+        return try formatter.reformat(input, sourceLocation: sourceLocation)
     }
 }

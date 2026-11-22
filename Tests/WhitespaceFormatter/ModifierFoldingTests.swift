@@ -192,10 +192,11 @@ import WhitespaceFormatter
     }
 }
 extension ModifierFoldingTests {
-    private static func format(_ input: consuming String) throws -> String {
+    private static func format(
+        _ input: consuming String,
+        sourceLocation: SourceLocation = #_sourceLocation
+    ) throws -> String {
         let formatter: WhitespaceFormatter = .init { $0.foldKeywords = true }
-        var input: String = input
-        try formatter.reformat(&input, check: true)
-        return input
+        return try formatter.reformat(input, sourceLocation: sourceLocation)
     }
 }
