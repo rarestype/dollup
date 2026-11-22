@@ -51,7 +51,7 @@ final class ColonCalculator: SyntaxVisitor {
         return .visitChildren
     }
 
-    override func visit(_ node: TernaryExprSyntax) -> SyntaxVisitorContinueKind {
+    override func visit(_ node: UnresolvedTernaryExprSyntax) -> SyntaxVisitorContinueKind {
         self.mark(node.colon, as: .both)
         return .visitChildren
     }

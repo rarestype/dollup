@@ -131,7 +131,10 @@ extension BracketCalculator {
 
         var element: Syntax? = token.parent
 
-        while let parent: Syntax = element?.parent, !parent.kind.isSyntaxCollection {
+        // the elements of an operator sequence are not a collection: a bracket that starts an
+        // operand belongs to the element the whole sequence is part of
+        while let parent: Syntax = element?.parent,
+            parent.is(ExprListSyntax.self) || !parent.kind.isSyntaxCollection {
             // the element of a sugared array type, or the key of a sugared dictionary type,
             // stands on its own line, like an element of a collection literal
             if  parent.is(ArrayTypeSyntax.self) {

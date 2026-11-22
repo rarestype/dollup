@@ -233,11 +233,12 @@ class LineExpander: SyntaxVisitor {
         }
         return .visitChildren
     }
-    override func visit(_ node: InfixOperatorExprSyntax) -> SyntaxVisitorContinueKind {
+    override func visit(_ node: SequenceExprSyntax) -> SyntaxVisitorContinueKind {
         // a run after the `=` of an assignment starts on its own line, so its lines align
-        if  let (_, value): (TokenSyntax, ExprSyntax) = node.assignedRun,
-            value.lacksPrecedingNewline {
-            self.break(before: value)
+        if  let (_, value): (AssignmentExprSyntax, Slice<ExprListSyntax>) = node.assignedRun,
+            let first: ExprSyntax = value.first,
+                first.lacksPrecedingNewline {
+            self.break(before: first)
         }
         return .visitChildren
     }

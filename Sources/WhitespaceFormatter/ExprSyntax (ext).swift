@@ -6,73 +6,93 @@ extension ExprSyntax {
     /// (`try`, `await`, `unsafe`) may start the arms only if every arm starts with the same
     /// ones, since otherwise the arms cannot align.
     var isTernaryRun: Bool {
-        let (markers, first): ([String], ExprSyntax) = self.effectMarkers
-        guard
-        var link: TernaryExprSyntax = first.as(TernaryExprSyntax.self) else {
-            return false
-        }
-        var chained: Bool = false
-        while true {
-            let (next, arm): ([String], ExprSyntax) = link.elseExpression.effectMarkers
-            guard
-            let arm: TernaryExprSyntax = arm.as(TernaryExprSyntax.self) else {
-                return chained
-            }
-            if  link.colon.leadingTrivia.containsNewlines ||
-                link.elseExpression.lacksPrecedingNewline ||
-                next != markers {
-                return false
-            }
-            chained = true
-            link = arm
+        if  let sequence: SequenceExprSyntax = self.as(SequenceExprSyntax.self) {
+            Self.isTernaryRun(sequence.elements)
+        } else {
+            false
         }
     }
+    /// Whether these elements of an operator sequence, in source order, are a run of
+    /// ternaries.
+    static func isTernaryRun(_ elements: some Sequence<ExprSyntax>) -> Bool {
+        /// The markers that start the first arm.
+        var markers: [String]? = nil
+        /// The colon of the ternary that ends the previous arm.
+        var colon: TokenSyntax? = nil
+        /// The first element of the current arm.
+        var start: ExprSyntax? = nil
+        var chained: Bool = false
+        for element: ExprSyntax in elements {
+            guard
+            let ternary: UnresolvedTernaryExprSyntax = element.as(
+                UnresolvedTernaryExprSyntax.self
+            ) else {
+                start = start ?? element
+                continue
+            }
+            guard
+            let first: ExprSyntax = start else {
+                return false
+            }
+            let (next, _): ([String], ExprSyntax) = first.effectMarkers
+            if  let colon: TokenSyntax {
+                if  colon.leadingTrivia.containsNewlines ||
+                    first.lacksPrecedingNewline ||
+                    next != markers {
+                    return false
+                }
+                chained = true
+            } else {
+                markers = next
+            }
+            colon = ternary.colon
+            start = nil
+        }
+        return chained
+    }
     /// Whether this is a run of operators, `a * b +` / `c * d`, which breaks lines only right
-    /// after its infix operators, and does so at least once. Effect markers (`try`, `await`,
-    /// `unsafe`) may start the run.
-    ///
-    /// The run is defined by where its lines break, not by how its operators group, since the
-    /// grouping comes from an operator table that does not know operators declared in other
-    /// files.
+    /// after its binary operators, and does so at least once.
     var isOperatorRun: Bool {
-        let (_, expression): ([String], ExprSyntax) = self.effectMarkers
-        return Self.isOperatorRun(expression.infixSequence[...])
+        if  let sequence: SequenceExprSyntax = self.as(SequenceExprSyntax.self) {
+            Self.isOperatorRun(sequence.elements)
+        } else {
+            false
+        }
     }
     /// Whether this is a run of ternaries or a run of operators, whose lines align with each
     /// other.
     var isRun: Bool {
         self.isTernaryRun || self.isOperatorRun
     }
-    /// The operands and operators of this sequence of infix operators, alternating, in source
-    /// order. Source order survives any grouping, including the left-to-right grouping the
-    /// operator table falls back to around an operator it does not know.
-    var infixSequence: [ExprSyntax] {
-        var sequence: [ExprSyntax] = []
-        self.append(to: &sequence)
-        return sequence
-    }
-    private func append(to sequence: inout [ExprSyntax]) {
-        if  let infix: InfixOperatorExprSyntax = self.as(InfixOperatorExprSyntax.self) {
-            infix.leftOperand.append(to: &sequence)
-            sequence.append(infix.operator)
-            infix.rightOperand.append(to: &sequence)
-        } else {
-            sequence.append(self)
-        }
-    }
-    /// Whether the alternating operands and operators are a run of operators: at least one
-    /// operator, none of which starts a line, and at least one operand that does.
-    static func isOperatorRun(_ sequence: ArraySlice<ExprSyntax>) -> Bool {
+    /// Whether these elements of an operator sequence, in source order, are a run of
+    /// operators.
+    ///
+    /// The run is defined by where its lines break, not by how its operators group, since the
+    /// grouping would depend on operator declarations the formatter cannot see.
+    static func isOperatorRun(_ elements: some Sequence<ExprSyntax>) -> Bool {
+        var previous: ExprSyntax? = nil
         var broken: Bool = false
-        for i: Int in stride(from: sequence.startIndex + 1, to: sequence.endIndex, by: 2) {
-            if !sequence[i].lacksPrecedingNewline {
-                return false
+        for element: ExprSyntax in elements {
+            defer {
+                previous = element
             }
-            if !sequence[i + 1].lacksPrecedingNewline {
+            guard
+            let previous: ExprSyntax,
+            !element.lacksPrecedingNewline else {
+                continue
+            }
+            if  previous.is(BinaryOperatorExprSyntax.self) {
                 broken = true
+            } else {
+                return false
             }
         }
         return broken
+    }
+    /// Whether these elements of an operator sequence, in source order, are a run of
+    /// ternaries or a run of operators.
+    static func isRun(_ elements: some Collection<ExprSyntax>) -> Bool {
+        Self.isTernaryRun(elements) || Self.isOperatorRun(elements)
     }
     /// The `try`, `await`, and `unsafe` markers in front of this expression, in order, and the
     /// expression they apply to.

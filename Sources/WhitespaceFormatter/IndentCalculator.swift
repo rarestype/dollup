@@ -521,12 +521,10 @@ class IndentCalculator: SyntaxVisitor {
         self.indent(token: node.operator)
         return .skipChildren
     }
-    override func visit(_ node: TernaryExprSyntax) -> SyntaxVisitorContinueKind {
-        self.walk(node.condition)
+    override func visit(_ node: UnresolvedTernaryExprSyntax) -> SyntaxVisitorContinueKind {
         self.indent(token: node.questionMark)
         self.walk(node.thenExpression)
         self.indent(token: node.colon)
-        self.walk(node.elseExpression)
         return .skipChildren
     }
 
@@ -543,17 +541,18 @@ class IndentCalculator: SyntaxVisitor {
         self.deindent(at: node.value.endPosition)
         return .skipChildren
     }
-    override func visit(_ node: InfixOperatorExprSyntax) -> SyntaxVisitorContinueKind {
+    override func visit(_ node: SequenceExprSyntax) -> SyntaxVisitorContinueKind {
         // a run on its own line after the `=` of an assignment is indented one level past it
         guard
-        let (equal, value): (TokenSyntax, ExprSyntax) = node.assignedRun,
-        !value.lacksPrecedingNewline else {
+        let (equal, value): (AssignmentExprSyntax, Slice<ExprListSyntax>) = node.assignedRun,
+        let first: ExprSyntax = value.first,
+           !first.lacksPrecedingNewline else {
             return .visitChildren
         }
-        for element: ExprSyntax in ExprSyntax.init(node).infixSequence {
+        for element: ExprSyntax in node.elements {
             self.walk(element)
-            if  element.id == equal.parent?.id {
-                self.indent(after: equal)
+            if  element.id == equal.id {
+                self.indent(after: equal.equal)
             }
         }
         self.deindent(at: node.endPosition)
