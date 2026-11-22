@@ -190,6 +190,21 @@ import WhitespaceFormatter
 
         #expect(try self.format(input) == expected + "\n")
     }
+    @Test static func WrappedAttribute() throws {
+        let input: String = """
+        @available(iOS 13, macOS 10.15, tvOS 13, watchOS 6, visionOS 1, \
+        message: "use the other one, please")
+        public func f() {}
+        """
+        let expected: String = """
+        @available(
+            iOS 13, macOS 10.15, tvOS 13, watchOS 6, visionOS 1, \
+        message: "use the other one, please"
+        ) public func f() {}
+        """
+
+        #expect(try self.format(input) == expected + "\n")
+    }
 }
 extension ModifierFoldingTests {
     private static func format(

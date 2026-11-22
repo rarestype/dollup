@@ -204,81 +204,39 @@ class LineWrapper: SyntaxVisitor {
 
         guard
         let leftParen: TokenSyntax = node.leftParen,
+        let rightParen: TokenSyntax = node.rightParen,
         let arguments: AttributeSyntax.Arguments = node.arguments else {
             // perhaps there is something breakable inside the attribute type
             return .visitChildren
         }
 
         switch self.limitViolated(by: node, tier: .decorator) {
-        case nil: return .visitChildren
-        case true?: break
-        case false?: return .skipChildren
+        case true?:
+            // first, move the arguments onto a line of their own
+            self.break(after: leftParen)
+            self.break(before: rightParen)
+            return .skipChildren
+
+        case false?:
+            return .skipChildren
+
+        case nil:
+            // arguments on a line of their own go one per line only if that line is still
+            // too long
+            switch arguments {
+            case .argumentList(let arguments):
+                return self.split(arguments, tier: .decorator)
+            case .availability(let arguments):
+                return self.split(arguments, tier: .decorator)
+            case .documentationArguments(let arguments):
+                return self.split(arguments, tier: .decorator)
+            case .specializeArguments(let arguments):
+                return self.split(arguments, tier: .decorator)
+            default:
+                // a single argument has nothing to separate, but may be breakable inside
+                return .visitChildren
+            }
         }
-
-        self.break(after: leftParen)
-
-        switch arguments {
-        #if canImport(SwiftSyntax603)
-        case .specializedArguments(let arguments):
-            self.break(after: arguments)
-        #endif
-        #if canImport(SwiftSyntax602)
-        case .abiArguments(let arguments):
-            self.break(after: arguments.provider)
-        #else
-        case .token(let token):
-            self.break(after: token)
-        case .string(let string):
-            self.break(after: string)
-        case .conventionArguments(let arguments):
-            self.break(after: arguments)
-        case .conventionWitnessMethodArguments(let arguments):
-            self.break(after: arguments)
-        case .opaqueReturnTypeOfAttributeArguments(let arguments):
-            self.break(after: arguments)
-        case .exposeAttributeArguments(let arguments):
-            self.break(after: arguments)
-        case .underscorePrivateAttributeArguments(let arguments):
-            self.break(after: arguments)
-        case .unavailableFromAsyncArguments(let arguments):
-            self.break(after: arguments)
-        #endif
-
-        case .argumentList(let arguments):
-            for argument: LabeledExprSyntax in arguments {
-                self.break(after: argument)
-            }
-        case .availability(let arguments):
-            for argument: AvailabilityArgumentSyntax in arguments {
-                self.break(after: argument)
-            }
-        case .documentationArguments(let arguments):
-            for argument: DocumentationAttributeArgumentSyntax in arguments {
-                self.break(after: argument)
-            }
-        case .specializeArguments(let arguments):
-            for argument: SpecializeAttributeArgumentListSyntax.Element in arguments {
-                self.break(after: argument)
-            }
-        case .backDeployedArguments(let arguments):
-            self.break(after: arguments)
-        case .effectsArguments(let arguments):
-            self.break(after: arguments)
-        case .dynamicReplacementArguments(let arguments):
-            self.break(after: arguments)
-        case .implementsArguments(let arguments):
-            self.break(after: arguments)
-        case .differentiableArguments(let arguments):
-            self.break(after: arguments)
-        case .derivativeRegistrationArguments(let arguments):
-            self.break(after: arguments)
-        case .objCName(let arguments):
-            self.break(after: arguments)
-        case .originallyDefinedInArguments(let arguments):
-            self.break(after: arguments)
-        }
-
-        return .skipChildren
     }
     override func visit(_ node: ClosureParameterClauseSyntax) -> SyntaxVisitorContinueKind {
         if node.parameters.isEmpty {
@@ -535,23 +493,53 @@ extension LineWrapper {
             return .skipChildren
         }
         // try breaking the argument list (it is not a single node)
-        if !arguments.isEmpty,
-            let leftDelimiter: TokenSyntax = leftDelimiter,
-            let rightDelimiter: TokenSyntax = rightDelimiter,
-            case true? = self.limitViolated(
-                by: (leftDelimiter, rightDelimiter),
-                tier: tier
-            ) {
-            self.break(after: leftDelimiter)
-            for parameter: LabeledExprSyntax in arguments {
-                self.break(after: parameter)
-            }
-            return .skipChildren
-        } else {
+        guard !arguments.isEmpty,
+        let leftDelimiter: TokenSyntax = leftDelimiter,
+        let rightDelimiter: TokenSyntax = rightDelimiter else {
             return .visitChildren
         }
-    }
+        switch self.limitViolated(by: (leftDelimiter, rightDelimiter), tier: tier) {
+        case true?:
+            self.break(after: leftDelimiter)
+            if  case .subscript = tier {
+                // first, move the subscript arguments onto a line of their own
+                self.break(before: rightDelimiter)
+            } else {
+                for parameter: LabeledExprSyntax in arguments {
+                    self.break(after: parameter)
+                }
+            }
+            return .skipChildren
 
+        case false?:
+            return .visitChildren
+
+        case nil:
+            // subscript arguments on a line of their own go one per line only if that line is
+            // still too long
+            if  case .subscript = tier {
+                return self.split(arguments, tier: tier)
+            } else {
+                return .visitChildren
+            }
+        }
+    }
+    /// Breaks between the elements of a list that starts a line of its own, if that line is
+    /// still too long and the list has more than one element.
+    private func split<List>(
+        _ list: List,
+        tier: LinebreakTier
+    ) -> SyntaxVisitorContinueKind where List: SyntaxCollection {
+        guard list.count > 1,
+        !list.lacksPrecedingNewline,
+        case true? = self.limitViolated(by: list, tier: tier) else {
+            return .visitChildren
+        }
+        for element: List.Element in list.dropLast() {
+            self.break(after: element)
+        }
+        return .skipChildren
+    }
 
     private func limitViolated(by node: some SyntaxProtocol, tier: LinebreakTier) -> Bool? {
         self.limitViolated(

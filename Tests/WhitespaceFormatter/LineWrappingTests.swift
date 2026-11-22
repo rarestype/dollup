@@ -296,6 +296,26 @@ import WhitespaceFormatter
 
         try #expect(WhitespaceFormatter.reformat(input, width: 40) == expected + "\n")
     }
+    @Test static func AttributeSingleArgument() throws {
+        ///                                     | +40
+        let input: String = """
+        @Macro(index(first: a, second: b, third: c, fourth: d)) enum E {
+        }
+        """
+        ///                                     | +40
+        let expected: String = """
+        @Macro(
+            index(
+                first: a,
+                second: b,
+                third: c,
+                fourth: d
+            )
+        ) enum E {}
+        """
+
+        try #expect(WhitespaceFormatter.reformat(input, width: 40) == expected + "\n")
+    }
     @Test static func AttributeWrappingDisabled() throws {
         ///                                     | +40
         let input: String = """
@@ -671,6 +691,35 @@ import WhitespaceFormatter
         """
 
         try #expect(WhitespaceFormatter.reformat(input, width: 60) == expected + "\n")
+    }
+    @Test static func SubscriptArgumentsTogether() throws {
+        ///                                     | +40
+        let input: String = """
+        grid[row: r + offset, column: c - offset] = cell
+        grid[row: r + offset, column: c - offset, layer: l] = cell
+        grid[index(first: a, second: b, third: c, fourth: d)] = cell
+        """
+        ///                                     | +40
+        let expected: String = """
+        grid[
+            row: r + offset, column: c - offset
+        ] = cell
+        grid[
+            row: r + offset,
+            column: c - offset,
+            layer: l
+        ] = cell
+        grid[
+            index(
+                first: a,
+                second: b,
+                third: c,
+                fourth: d
+            )
+        ] = cell
+        """
+
+        try #expect(WhitespaceFormatter.reformat(input, width: 40) == expected + "\n")
     }
     @Test static func Atomics() throws {
         ///                                     | +40

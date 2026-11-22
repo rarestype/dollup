@@ -54,13 +54,7 @@ extension WhitespaceFormatter {
             source.update(with: aligned, onChange: self.reindent)
         }
         if  self.options.foldKeywords {
-            let calculator: ModifierCalculator = .init(fold: self.options.foldAttribute)
-            ;   calculator.walk(source.tree)
-
-            let aligner: ModifierFolder = .init(movable: calculator.movable)
-            let aligned: String = aligner.rewrite(source.tree)
-
-            source.update(with: aligned, onChange: self.reindent)
+            self.foldKeywords(&source)
         }
         if  self.options.formatColonPadding {
             let calculator: ColonCalculator = .init()
@@ -90,6 +84,11 @@ extension WhitespaceFormatter {
                 text: self.reindent(wrapper.text.insert(linebreaks: linebreaks)),
                 didChange: true
             )
+            // an attribute whose closing parenthesis now starts a line folds the declaration
+            // after it
+            if  self.options.foldKeywords {
+                self.foldKeywords(&source)
+            }
         }
 
         guard check else {
@@ -154,6 +153,16 @@ extension WhitespaceFormatter {
         guard case nil = expected.next() else {
             fatalError("reformatted source has fewer tokens than original!!!")
         }
+    }
+
+    private func foldKeywords(_ source: inout Source) {
+        let calculator: ModifierCalculator = .init(fold: self.options.foldAttribute)
+        ;   calculator.walk(source.tree)
+
+        let aligner: ModifierFolder = .init(movable: calculator.movable)
+        let aligned: String = aligner.rewrite(source.tree)
+
+        source.update(with: aligned, onChange: self.reindent)
     }
 
     public func reindent(_ source: String) -> String {
