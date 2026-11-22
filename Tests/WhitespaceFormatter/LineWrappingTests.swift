@@ -467,8 +467,8 @@ import WhitespaceFormatter
         let a: Int = // thirteen
         13
         let b: Direction =
-        p ? .up :
-        q ? .down : nil
+            p ? .up :
+            q ? .down : nil
         let c: (Int, Int) =
         aaaaaaaaaaaaaa + bbbbbbbbbbbbbbbbbbbbbbb
         let d: (Int) throws -> Long =

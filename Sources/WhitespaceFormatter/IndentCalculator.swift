@@ -530,12 +530,41 @@ class IndentCalculator: SyntaxVisitor {
         return .skipChildren
     }
 
+    override func visit(_ node: InitializerClauseSyntax) -> SyntaxVisitorContinueKind {
+        // a run of ternaries or operators on its own line after the `=` of a binding is
+        // indented one level past it, while any other value after the `=` is not
+        guard !node.value.lacksPrecedingNewline,
+        node.value.isRun else {
+            return .visitChildren
+        }
+        self.walk(node.equal)
+        self.indent(after: node.equal)
+        self.walk(node.value)
+        self.deindent(at: node.value.endPosition)
+        return .skipChildren
+    }
+    override func visit(_ node: InfixOperatorExprSyntax) -> SyntaxVisitorContinueKind {
+        // a run on its own line after the `=` of an assignment is indented one level past it
+        guard
+        let (equal, value): (TokenSyntax, ExprSyntax) = node.assignedRun,
+        !value.lacksPrecedingNewline else {
+            return .visitChildren
+        }
+        for element: ExprSyntax in ExprSyntax.init(node).infixSequence {
+            self.walk(element)
+            if  element.id == equal.parent?.id {
+                self.indent(after: equal)
+            }
+        }
+        self.deindent(at: node.endPosition)
+        return .skipChildren
+    }
     override func visit(_ node: LabeledExprSyntax) -> SyntaxVisitorContinueKind {
-        // a run of ternaries on its own line after a label is indented one level past it
+        // a run on its own line after a label is indented one level past it
         guard
         let colon: TokenSyntax = node.colon,
         !node.expression.lacksPrecedingNewline,
-        node.expression.isTernaryRun else {
+        node.expression.isRun else {
             return .visitChildren
         }
         self.walkIfPresent(node.label)

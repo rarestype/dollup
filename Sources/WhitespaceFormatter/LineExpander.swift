@@ -216,11 +216,28 @@ class LineExpander: SyntaxVisitor {
         return .visitChildren
     }
     override func visit(_ node: LabeledExprSyntax) -> SyntaxVisitorContinueKind {
-        // a run of ternaries after a label starts on its own line, so its arms align
+        // a run of ternaries or operators after a label starts on its own line, so its lines
+        // align
         if  case _? = node.colon,
             node.expression.lacksPrecedingNewline,
-            node.expression.isTernaryRun {
+            node.expression.isRun {
             self.break(before: node.expression)
+        }
+        return .visitChildren
+    }
+    override func visit(_ node: InitializerClauseSyntax) -> SyntaxVisitorContinueKind {
+        // a run after the `=` of a binding starts on its own line, so its lines align
+        if  node.value.lacksPrecedingNewline,
+            node.value.isRun {
+            self.break(before: node.value)
+        }
+        return .visitChildren
+    }
+    override func visit(_ node: InfixOperatorExprSyntax) -> SyntaxVisitorContinueKind {
+        // a run after the `=` of an assignment starts on its own line, so its lines align
+        if  let (_, value): (TokenSyntax, ExprSyntax) = node.assignedRun,
+            value.lacksPrecedingNewline {
+            self.break(before: value)
         }
         return .visitChildren
     }

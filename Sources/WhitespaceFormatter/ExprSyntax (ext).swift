@@ -27,6 +27,53 @@ extension ExprSyntax {
             link = arm
         }
     }
+    /// Whether this is a run of operators, `a * b +` / `c * d`, which breaks lines only right
+    /// after its infix operators, and does so at least once. Effect markers (`try`, `await`,
+    /// `unsafe`) may start the run.
+    ///
+    /// The run is defined by where its lines break, not by how its operators group, since the
+    /// grouping comes from an operator table that does not know operators declared in other
+    /// files.
+    var isOperatorRun: Bool {
+        let (_, expression): ([String], ExprSyntax) = self.effectMarkers
+        return Self.isOperatorRun(expression.infixSequence[...])
+    }
+    /// Whether this is a run of ternaries or a run of operators, whose lines align with each
+    /// other.
+    var isRun: Bool {
+        self.isTernaryRun || self.isOperatorRun
+    }
+    /// The operands and operators of this sequence of infix operators, alternating, in source
+    /// order. Source order survives any grouping, including the left-to-right grouping the
+    /// operator table falls back to around an operator it does not know.
+    var infixSequence: [ExprSyntax] {
+        var sequence: [ExprSyntax] = []
+        self.append(to: &sequence)
+        return sequence
+    }
+    private func append(to sequence: inout [ExprSyntax]) {
+        if  let infix: InfixOperatorExprSyntax = self.as(InfixOperatorExprSyntax.self) {
+            infix.leftOperand.append(to: &sequence)
+            sequence.append(infix.operator)
+            infix.rightOperand.append(to: &sequence)
+        } else {
+            sequence.append(self)
+        }
+    }
+    /// Whether the alternating operands and operators are a run of operators: at least one
+    /// operator, none of which starts a line, and at least one operand that does.
+    static func isOperatorRun(_ sequence: ArraySlice<ExprSyntax>) -> Bool {
+        var broken: Bool = false
+        for i: Int in stride(from: sequence.startIndex + 1, to: sequence.endIndex, by: 2) {
+            if !sequence[i].lacksPrecedingNewline {
+                return false
+            }
+            if !sequence[i + 1].lacksPrecedingNewline {
+                broken = true
+            }
+        }
+        return broken
+    }
     /// The `try`, `await`, and `unsafe` markers in front of this expression, in order, and the
     /// expression they apply to.
     private var effectMarkers: (markers: [String], expression: ExprSyntax) {

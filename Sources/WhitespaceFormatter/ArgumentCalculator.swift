@@ -16,7 +16,7 @@ final class ArgumentCalculator: SyntaxVisitor {
     override func visit(_ node: LabeledExprSyntax) -> SyntaxVisitorContinueKind {
         if  let _: TokenSyntax = node.colon,
            !node.expression.lacksPrecedingNewline,
-           !node.expression.isTernaryRun {
+           !node.expression.isRun {
             self.movable[node.expression.positionAfterSkippingLeadingTrivia] = true
         }
         if  let trailingComma: TokenSyntax = node.trailingComma,
@@ -27,10 +27,10 @@ final class ArgumentCalculator: SyntaxVisitor {
         return .visitChildren
     }
     override func visit(_ node: InitializerClauseSyntax) -> SyntaxVisitorContinueKind {
-        // a comment after the `=` stays where it is, and a run of ternaries keeps its arms
-        // aligned on lines of their own
+        // a comment after the `=` stays where it is, and a run of ternaries or operators stays
+        // on lines of its own, so they align
         guard node.equal.trailingTrivia.isWhitespace,
-        !node.value.isTernaryRun,
+        !node.value.isRun,
         let first: TokenSyntax = node.value.firstToken(viewMode: .sourceAccurate),
             first.leadingTrivia.containsNewlines else {
             return .visitChildren
