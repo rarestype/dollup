@@ -459,6 +459,8 @@ import WhitespaceFormatter
             q ? .down : nil
         let c: (Int, Int) =
             aaaaaaaaaaaaaa + bbbbbbbbbbbbbbbbbbbbbbb
+        let d: (Int) throws -> Long =
+            aaaaa.bbbbb.ccccc.ddddd
         """
         ///                                     | +40
         let expected: String = """
@@ -469,6 +471,8 @@ import WhitespaceFormatter
         q ? .down : nil
         let c: (Int, Int) =
         aaaaaaaaaaaaaa + bbbbbbbbbbbbbbbbbbbbbbb
+        let d: (Int) throws -> Long =
+        aaaaa.bbbbb.ccccc.ddddd
         """
 
         try #expect(WhitespaceFormatter.reformat(input, width: 40) == expected + "\n")

@@ -53,19 +53,33 @@ final class ArgumentCalculator: SyntaxVisitor {
         let line: (indent: Int, declaration: Int, value: Int) = self.measure(node)
         // a value moves up onto the line of its `=` if the joined line fits, or if the line
         // wrapper can make room for it by breaking brackets: those of the value first, or
-        // otherwise those of a tuple, array, or dictionary annotation, after whose closing
-        // bracket the value would then have to fit, as in `) = value`
+        // otherwise those of the annotation, after whose closing bracket the rest of the
+        // annotation and the value would then have to fit, as in `) throws -> T = value`
         if  line.declaration + 1 + line.value <= self.width || node.value.makesRoom {
             self.movable[first.positionAfterSkippingLeadingTrivia] = true
         } else if
-            case _? = node.breakableAnnotation,
-            line.indent + 4 + line.value <= self.width {
+            let delimiter: TokenSyntax = node.annotationClosingDelimiter,
+            line.indent + self.length(from: delimiter, through: node.equal) + 1 + line.value
+                <= self.width {
             self.movable[first.positionAfterSkippingLeadingTrivia] = true
         }
         return .visitChildren
     }
 }
 extension ArgumentCalculator {
+    /// Measures the source text from the start of one token through the end of another.
+    private func length(from first: TokenSyntax, through last: TokenSyntax) -> Int {
+        let utf8: String.UTF8View = self.text.utf8
+        let start: String.Index = utf8.index(
+            utf8.startIndex,
+            offsetBy: first.positionAfterSkippingLeadingTrivia.utf8Offset
+        )
+        let end: String.Index = utf8.index(
+            utf8.startIndex,
+            offsetBy: last.endPositionBeforeTrailingTrivia.utf8Offset
+        )
+        return self.text[start ..< end].count
+    }
     /// Measures the indentation of the line of the `=`, its length up to and including the
     /// `=`, and the length of the first line of the value.
     private func measure(
