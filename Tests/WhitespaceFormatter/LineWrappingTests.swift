@@ -502,6 +502,47 @@ import WhitespaceFormatter
 
         try #expect(WhitespaceFormatter.reformat(input, width: 22) == expected + "\n")
     }
+    @Test static func StringLiteralWithPoundDelimitersInterpolation() throws {
+        /// A single-line string literal cannot contain a line break, not even inside an
+        /// interpolation, so we should leave this alone too
+        ///                 | +16
+        let input: String = ##"""
+        x += #"\#(f(a, b))"#
+        """##
+        let expected: String = ##"""
+        x += #"\#(f(a, b))"#
+        """##
+
+        try #expect(WhitespaceFormatter.reformat(input, width: 16) == expected + "\n")
+    }
+    @Test static func StringLiteralInsidePoundDelimiters() throws {
+        /// A string literal inside an interpolation of a single-line raw string literal must
+        /// not become a multiline string literal
+        ///                     | +20
+        let input: String = ##"""
+        x = #"\#(b ? "c" : "")"#
+        """##
+        let expected: String = ##"""
+        x = #"\#(b ? "c" : "")"#
+        """##
+
+        try #expect(WhitespaceFormatter.reformat(input, width: 20) == expected + "\n")
+    }
+    @Test static func StringLiteralBeforePoundDelimiters() throws {
+        /// The raw string literal should not keep the string literal before it from wrapping
+        ///                             | +30
+        let input: String = ##"""
+        x = "the quick brown fox" + #"\#(f(a))"#
+        """##
+        ///                             | +30
+        let expected: String = ##"""
+        x = """
+        the quick brown fox
+        """ + #"\#(f(a))"#
+        """##
+
+        try #expect(WhitespaceFormatter.reformat(input, width: 30) == expected + "\n")
+    }
     @Test static func StringWithMultilineInterpolation() throws {
         /// This should break the closure, not the subscript arguments
         ///                                                      | +60
