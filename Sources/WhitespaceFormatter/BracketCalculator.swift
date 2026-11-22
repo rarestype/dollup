@@ -131,7 +131,24 @@ extension BracketCalculator {
 
         var element: Syntax? = token.parent
 
-        while let parent: Syntax = element?.parent, !parent.kind.isSyntaxCollection {
+        while let parent: Syntax = element?.parent {
+            if  let elements: ExprListSyntax = parent.as(ExprListSyntax.self) {
+                // the operands of a run each start a line of their own, like the elements of a
+                // collection literal, while a bracket that starts an operand of any other
+                // operator sequence belongs to the element the whole sequence is part of
+                if  let element: Syntax,
+                    let sequence: SequenceExprSyntax = elements.parent?.as(
+                        SequenceExprSyntax.self
+                    ),
+                    case true? = sequence.alignedRun?.contains(where: { $0.id == element.id }) {
+                    break
+                }
+                element = parent
+                continue
+            }
+            if  parent.kind.isSyntaxCollection {
+                break
+            }
             // the element of a sugared array type, or the key of a sugared dictionary type,
             // stands on its own line, like an element of a collection literal
             if  parent.is(ArrayTypeSyntax.self) {

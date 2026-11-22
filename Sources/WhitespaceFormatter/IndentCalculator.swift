@@ -521,21 +521,49 @@ class IndentCalculator: SyntaxVisitor {
         self.indent(token: node.operator)
         return .skipChildren
     }
-    override func visit(_ node: TernaryExprSyntax) -> SyntaxVisitorContinueKind {
-        self.walk(node.condition)
+    override func visit(_ node: UnresolvedTernaryExprSyntax) -> SyntaxVisitorContinueKind {
         self.indent(token: node.questionMark)
         self.walk(node.thenExpression)
         self.indent(token: node.colon)
-        self.walk(node.elseExpression)
         return .skipChildren
     }
 
+    override func visit(_ node: InitializerClauseSyntax) -> SyntaxVisitorContinueKind {
+        // a run of ternaries or operators on its own line after the `=` of a binding is
+        // indented one level past it, while any other value after the `=` is not
+        guard !node.value.lacksPrecedingNewline,
+        node.value.isRun else {
+            return .visitChildren
+        }
+        self.walk(node.equal)
+        self.indent(after: node.equal)
+        self.walk(node.value)
+        self.deindent(at: node.value.endPosition)
+        return .skipChildren
+    }
+    override func visit(_ node: SequenceExprSyntax) -> SyntaxVisitorContinueKind {
+        // a run on its own line after the `=` of an assignment is indented one level past it
+        guard
+        let (equal, value): (AssignmentExprSyntax, Slice<ExprListSyntax>) = node.assignedRun,
+        let first: ExprSyntax = value.first,
+           !first.lacksPrecedingNewline else {
+            return .visitChildren
+        }
+        for element: ExprSyntax in node.elements {
+            self.walk(element)
+            if  element.id == equal.id {
+                self.indent(after: equal.equal)
+            }
+        }
+        self.deindent(at: node.endPosition)
+        return .skipChildren
+    }
     override func visit(_ node: LabeledExprSyntax) -> SyntaxVisitorContinueKind {
-        // a run of ternaries on its own line after a label is indented one level past it
+        // a run on its own line after a label is indented one level past it
         guard
         let colon: TokenSyntax = node.colon,
         !node.expression.lacksPrecedingNewline,
-        node.expression.isTernaryRun else {
+        node.expression.isRun else {
             return .visitChildren
         }
         self.walkIfPresent(node.label)

@@ -84,6 +84,90 @@ import WhitespaceFormatter
 
         #expect(try self.format(input) == expected + "\n")
     }
+    @Test static func OperatorRun() throws {
+        let input: String = """
+        f(
+        x: a * b +
+        c * d,
+        y: a <> b +
+        c,
+        z: a + b
+        )
+        """
+        let expected: String = """
+        f(
+            x:
+                a * b +
+                c * d,
+            y:
+                a <> b +
+                c,
+            z: a + b
+        )
+        """
+
+        #expect(try self.format(input) == expected + "\n")
+    }
+    @Test static func RunsAfterEqual() throws {
+        let input: String = """
+        let a: Direction? = p ? .up :
+        q ? .down : nil
+        let b: Int = a * b +
+        c * d
+        self.c = a * b +
+        c * d
+        y = a <- b +
+        c
+        k += a +
+        b
+        let d: Int = a ?? try b +
+        c
+        let e: Double = a * b +
+        c * d as Double
+        let f: Int = a +
+        try b
+        * c
+        let lead: Int = a
+        + b
+        func f() -> Int {
+        return a +
+        b
+        }
+        """
+        let expected: String = """
+        let a: Direction? =
+            p ? .up :
+            q ? .down : nil
+        let b: Int =
+            a * b +
+            c * d
+        self.c =
+            a * b +
+            c * d
+        y =
+            a <- b +
+            c
+        k += a +
+        b
+        let d: Int =
+            a ?? try b +
+            c
+        let e: Double =
+            a * b +
+            c * d as Double
+        let f: Int = a +
+        try b
+            * c
+        let lead: Int = a
+            + b
+        func f() -> Int {
+            return a +
+            b
+        }
+        """
+
+        #expect(try self.format(input) == expected + "\n")
+    }
     @Test static func TernaryRunPulledUp() throws {
         let input: String = """
         f(

@@ -1,6 +1,8 @@
 import SwiftOperators
 
 public struct WhitespaceOptions {
+    /// This table has no effect, because the formatter never groups operator sequences by
+    /// precedence. It remains for source compatibility.
     public var operators: OperatorTable
     public var width: Int
 

@@ -1,5 +1,3 @@
-import SwiftOperators
-import SwiftParser
 import SwiftSyntax
 
 /// This pass detects Google-style “code rectangles”, and reformats Swift code to fit within a
@@ -16,7 +14,7 @@ extension WhitespaceFormatter {
 }
 extension WhitespaceFormatter {
     public func reformat(_ text: inout String, check: Bool) throws {
-        var source: Source = .init(operators: self.options.operators, text: consume text)
+        var source: Source = .init(text: consume text)
         defer {
             text = source.text
         }
@@ -187,10 +185,7 @@ extension WhitespaceFormatter {
     }
 
     public func reindent(_ source: String) -> String {
-        let (tree, _): (Syntax, [OperatorError]) = Source.parse(
-            operators: self.options.operators,
-            text: source
-        )
+        let tree: Syntax = Source.parse(text: source)
         let indents: IndentCalculator = .init(options: self.options.indent)
         ;   indents.walk(tree)
 

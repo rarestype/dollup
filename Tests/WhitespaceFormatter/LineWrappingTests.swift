@@ -467,13 +467,47 @@ import WhitespaceFormatter
         let a: Int = // thirteen
         13
         let b: Direction =
-        p ? .up :
-        q ? .down : nil
+            p ? .up :
+            q ? .down : nil
         let c: (Int, Int) =
         aaaaaaaaaaaaaa + bbbbbbbbbbbbbbbbbbbbbbb
         let d: (Int) throws -> Long =
         aaaaa.bbbbb.ccccc.ddddd
         """
+
+        try #expect(WhitespaceFormatter.reformat(input, width: 40) == expected + "\n")
+    }
+    @Test static func RunOperandsAnchored() throws {
+        ///                                     | +40
+        let input: String = #"""
+        let s: String = """
+        hello
+        """ +
+        "world"
+        let a: [Int] = [
+            1,
+        ] +
+        rest
+        f(aaaaaaaaaaaa, bbbbbbbbbbbbbbbb, ccccccccccc)
+        """#
+        ///                                     | +40
+        let expected: String = #"""
+        let s: String =
+            """
+            hello
+            """ +
+            "world"
+        let a: [Int] =
+            [
+                1,
+            ] +
+            rest
+        f(
+            aaaaaaaaaaaa,
+            bbbbbbbbbbbbbbbb,
+            ccccccccccc
+        )
+        """#
 
         try #expect(WhitespaceFormatter.reformat(input, width: 40) == expected + "\n")
     }

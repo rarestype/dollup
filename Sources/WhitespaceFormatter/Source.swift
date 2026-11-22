@@ -1,43 +1,30 @@
-import SwiftOperators
 import SwiftParser
 import SwiftSyntax
 
 struct Source: ~Copyable {
-    private let operators: OperatorTable
     private(set) var text: String
     private(set) var tree: Syntax
-    private(set) var operatorsNotRecognized: [OperatorError]
 
-    private init(operators: OperatorTable, text: String, tree: Syntax) {
-        self.operators = operators
+    private init(text: String, tree: Syntax) {
         self.text = text
         self.tree = tree
-        self.operatorsNotRecognized = []
     }
 }
 extension Source {
-    init(operators: OperatorTable, text: String) {
-        self.operators = operators
+    init(text: String) {
         self.text = text
-        (self.tree, self.operatorsNotRecognized) = Self.parse(
-            operators: self.operators,
-            text: self.text
-        )
+        self.tree = Self.parse(text: self.text)
     }
 
     mutating func reparse() {
-        (self.tree, self.operatorsNotRecognized) = Self.parse(
-            operators: self.operators,
-            text: self.text
-        )
+        self.tree = Self.parse(text: self.text)
     }
 
-    static func parse(operators: OperatorTable, text: String) -> (Syntax, [OperatorError]) {
-        var operatorsNotRecognized: [OperatorError] = []
-        let syntax: Syntax = operators.foldAll(Parser.parse(source: text)) {
-            operatorsNotRecognized.append($0)
-        }
-        return (syntax, operatorsNotRecognized)
+    /// Parses the text without grouping operator sequences, so every sequence stays flat, in
+    /// source order. Nothing in the formatter depends on operator precedence, and grouping
+    /// would depend on operator declarations that the formatter cannot see.
+    static func parse(text: String) -> Syntax {
+        Syntax.init(Parser.parse(source: text))
     }
 }
 extension Source {

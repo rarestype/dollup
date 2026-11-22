@@ -1,35 +1,86 @@
 import SwiftSyntax
 
 extension ExprSyntax {
-    /// Whether this is a run of ternaries, `a ? x :` / `b ? y :` / `c ? z : w`, with each arm
-    /// after the first starting a new line right after the `:` that precedes it. Effect markers
-    /// (`try`, `await`, `unsafe`) may start the arms only if every arm starts with the same
-    /// ones, since otherwise the arms cannot align.
-    var isTernaryRun: Bool {
-        let (markers, first): ([String], ExprSyntax) = self.effectMarkers
-        guard
-        var link: TernaryExprSyntax = first.as(TernaryExprSyntax.self) else {
-            return false
-        }
-        var chained: Bool = false
-        while true {
-            let (next, arm): ([String], ExprSyntax) = link.elseExpression.effectMarkers
-            guard
-            let arm: TernaryExprSyntax = arm.as(TernaryExprSyntax.self) else {
-                return chained
-            }
-            if  link.colon.leadingTrivia.containsNewlines ||
-                link.elseExpression.lacksPrecedingNewline ||
-                next != markers {
-                return false
-            }
-            chained = true
-            link = arm
+    /// Whether this is a run of ternaries or a run of operators, whose lines align with each
+    /// other.
+    var isRun: Bool {
+        if  let sequence: SequenceExprSyntax = self.as(SequenceExprSyntax.self) {
+            Self.isRun(sequence.elements)
+        } else {
+            false
         }
     }
-    /// The `try`, `await`, and `unsafe` markers in front of this expression, in order, and the
-    /// expression they apply to.
-    private var effectMarkers: (markers: [String], expression: ExprSyntax) {
+    /// Whether these elements of an operator sequence, in source order, are a run of
+    /// ternaries or a run of operators.
+    static func isRun(_ elements: some Collection<ExprSyntax>) -> Bool {
+        Self.isTernaryRun(elements) || Self.isOperatorRun(elements)
+    }
+    /// Whether these elements of an operator sequence, in source order, are a run of
+    /// ternaries, `a ? x :` / `b ? y :` / `c ? z : w`, with each arm after the first starting
+    /// a new line right after the `:` that precedes it. Effect markers (`try`, `await`,
+    /// `unsafe`) may start the arms only if every arm starts with the same ones, since
+    /// otherwise the arms cannot align.
+    private static func isTernaryRun(_ elements: some Sequence<ExprSyntax>) -> Bool {
+        /// The colon of the ternary that ends the previous arm, and the markers that start the
+        /// first arm.
+        var previous: (colon: TokenSyntax, markers: [String])? = nil
+        /// The first element of the current arm.
+        var start: ExprSyntax? = nil
+        var chained: Bool = false
+        for element: ExprSyntax in elements {
+            guard
+            let ternary: UnresolvedTernaryExprSyntax = element.as(
+                UnresolvedTernaryExprSyntax.self
+            ) else {
+                start = start ?? element
+                continue
+            }
+            guard
+            let first: ExprSyntax = start else {
+                return false
+            }
+            let next: [String] = first.effectMarkers
+            if  let (colon, markers): (TokenSyntax, [String]) = previous {
+                if  colon.leadingTrivia.containsNewlines ||
+                    first.lacksPrecedingNewline ||
+                    next != markers {
+                    return false
+                }
+                chained = true
+            }
+            previous = (ternary.colon, previous?.markers ?? next)
+            start = nil
+        }
+        return chained
+    }
+    /// Whether these elements of an operator sequence, in source order, are a run of
+    /// operators, `a * b +` / `c * d`, which breaks lines only right after its binary
+    /// operators, and does so at least once.
+    ///
+    /// The run is defined by where its lines break, not by how its operators group, since the
+    /// grouping would depend on operator declarations the formatter cannot see.
+    private static func isOperatorRun(_ elements: some Sequence<ExprSyntax>) -> Bool {
+        var previous: ExprSyntax? = nil
+        var broken: Bool = false
+        for element: ExprSyntax in elements {
+            defer {
+                previous = element
+            }
+            guard
+            let previous: ExprSyntax,
+            !element.lacksPrecedingNewline else {
+                continue
+            }
+            if  previous.is(BinaryOperatorExprSyntax.self) {
+                broken = true
+            } else {
+                return false
+            }
+        }
+        return broken
+    }
+    /// The `try`, `await`, and `unsafe` markers in front of this expression, in order.
+    private var effectMarkers: [String] {
         var markers: [String] = []
         var expression: ExprSyntax = self
         while true {
@@ -45,7 +96,7 @@ extension ExprSyntax {
                 markers.append("unsafe")
                 expression = unsafe.expression
             } else {
-                return (markers, expression)
+                return markers
             }
         }
     }
