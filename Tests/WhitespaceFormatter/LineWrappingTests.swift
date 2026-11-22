@@ -388,6 +388,48 @@ import WhitespaceFormatter
         try #expect(WhitespaceFormatter.reformat(input, width: 40) == expected + "\n")
     }
 
+    @Test static func InitializerJoined() throws {
+        ///                                     | +40
+        let input: String = """
+        let a: Int =
+            13 + 89
+        let b: Int =
+            aaaaaaaaaa + bbbbbbbbbb + cccccccccc
+        let c: Pair =
+            pair(first: 13, second: 89, third: 144)
+        let d: [Int] =
+            [13, 89]
+        """
+        ///                                     | +40
+        let expected: String = """
+        let a: Int = 13 + 89
+        let b: Int =
+        aaaaaaaaaa + bbbbbbbbbb + cccccccccc
+        let c: Pair = pair(
+            first: 13,
+            second: 89,
+            third: 144
+        )
+        let d: [Int] = [13, 89]
+        """
+
+        try #expect(WhitespaceFormatter.reformat(input, width: 40) == expected + "\n")
+    }
+    @Test static func InitializerJoinedAfterWrapping() throws {
+        ///                                     | +40
+        let input: String = """
+        let i: Stream<SomeLongElement>.Iterator =
+            stream.iterator()
+        """
+        ///                                     | +40
+        let expected: String = """
+        let i: Stream<
+            SomeLongElement
+        >.Iterator = stream.iterator()
+        """
+
+        try #expect(WhitespaceFormatter.reformat(input, width: 40) == expected + "\n")
+    }
     @Test static func StringLiteralLeadingWhitespace() throws {
         let input: String = """
         let x: String = "    foo"

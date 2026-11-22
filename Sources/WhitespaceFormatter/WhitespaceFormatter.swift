@@ -45,13 +45,7 @@ extension WhitespaceFormatter {
             source.update(with: aligned, onChange: self.reindent)
         }
         if  self.options.foldArguments {
-            let calculator: ArgumentCalculator = .init()
-            ;   calculator.walk(source.tree)
-
-            let aligner: TokenFolder = .init(movable: calculator.movable)
-            let aligned: String = aligner.rewrite(source.tree)
-
-            source.update(with: aligned, onChange: self.reindent)
+            self.foldArguments(&source)
         }
         if  self.options.foldKeywords {
             self.foldKeywords(&source)
@@ -84,8 +78,11 @@ extension WhitespaceFormatter {
                 text: self.reindent(wrapper.text.insert(linebreaks: linebreaks)),
                 didChange: true
             )
-            // an attribute whose closing parenthesis now starts a line folds the declaration
-            // after it
+            // after wrapping, a value after `=` may fit on its line, and an attribute whose
+            // closing parenthesis now starts a line folds the declaration after it
+            if  self.options.foldArguments {
+                self.foldArguments(&source)
+            }
             if  self.options.foldKeywords {
                 self.foldKeywords(&source)
             }
@@ -155,6 +152,18 @@ extension WhitespaceFormatter {
         }
     }
 
+    private func foldArguments(_ source: inout Source) {
+        let calculator: ArgumentCalculator = .init(
+            text: source.text,
+            width: self.options.width
+        )
+        ;   calculator.walk(source.tree)
+
+        let aligner: TokenFolder = .init(movable: calculator.movable)
+        let aligned: String = aligner.rewrite(source.tree)
+
+        source.update(with: aligned, onChange: self.reindent)
+    }
     private func foldKeywords(_ source: inout Source) {
         let calculator: ModifierCalculator = .init(fold: self.options.foldAttribute)
         ;   calculator.walk(source.tree)

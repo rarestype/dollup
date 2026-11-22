@@ -50,3 +50,35 @@ extension ExprSyntax {
         }
     }
 }
+extension ExprSyntax {
+    /// Whether the line wrapper can break this expression at brackets of its own: a call,
+    /// subscript, or macro expansion with arguments or a trailing closure, a non-empty array,
+    /// dictionary, or tuple literal, or a closure, possibly marked with `try` or `await`.
+    var makesRoom: Bool {
+        if  let expression: TryExprSyntax = self.as(TryExprSyntax.self) {
+            return expression.expression.makesRoom
+        }
+        if  let expression: AwaitExprSyntax = self.as(AwaitExprSyntax.self) {
+            return expression.expression.makesRoom
+        }
+        if  let call: FunctionCallExprSyntax = self.as(FunctionCallExprSyntax.self) {
+            return !call.arguments.isEmpty || call.trailingClosure != nil
+        }
+        if  let call: SubscriptCallExprSyntax = self.as(SubscriptCallExprSyntax.self) {
+            return !call.arguments.isEmpty || call.trailingClosure != nil
+        }
+        if  let call: MacroExpansionExprSyntax = self.as(MacroExpansionExprSyntax.self) {
+            return !call.arguments.isEmpty || call.trailingClosure != nil
+        }
+        if  let literal: ArrayExprSyntax = self.as(ArrayExprSyntax.self) {
+            return !literal.elements.isEmpty
+        }
+        if  let literal: DictionaryExprSyntax = self.as(DictionaryExprSyntax.self) {
+            return literal.content.is(DictionaryElementListSyntax.self)
+        }
+        if  let literal: TupleExprSyntax = self.as(TupleExprSyntax.self) {
+            return !literal.elements.isEmpty
+        }
+        return self.is(ClosureExprSyntax.self)
+    }
+}
