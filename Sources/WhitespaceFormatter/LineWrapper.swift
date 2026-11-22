@@ -6,12 +6,15 @@ class LineWrapper: SyntaxVisitor {
     private let wrap: AttributesOptions
     private var line: [String.Index: LinebreakContext].Index?
     private var lines: [String.Index: LinebreakContext]
+    /// The number of line breaks requested so far, including any later discarded.
+    private var requested: Int
 
     init(text: String, wrap: AttributesOptions, width: Int) {
         self.text = text
         self.wrap = wrap
         self.line = nil
         self.lines = Self.contexts(source: text, width: width)
+        self.requested = 0
 
         super.init(viewMode: .sourceAccurate)
     }
@@ -100,6 +103,31 @@ class LineWrapper: SyntaxVisitor {
         for element: ArrayElementSyntax in node.elements {
             self.break(after: element)
         }
+        return .skipChildren
+    }
+    override func visit(_ node: PatternBindingSyntax) -> SyntaxVisitorContinueKind {
+        // a binding breaks a tuple, array, or dictionary type annotation before its value
+        guard
+        let annotation: TypeAnnotationSyntax = node.typeAnnotation,
+        let initializer: InitializerClauseSyntax = node.initializer else {
+            return .visitChildren
+        }
+        switch annotation.type.kind {
+        case .tupleType, .arrayType, .dictionaryType:
+            break
+        default:
+            return .visitChildren
+        }
+
+        self.walk(node.pattern)
+
+        let requested: Int = self.requested
+        self.walk(annotation)
+        if  self.requested == requested {
+            self.walk(initializer)
+        }
+
+        self.walkIfPresent(node.accessorBlock)
         return .skipChildren
     }
     override func visit(_ node: ArrayTypeSyntax) -> SyntaxVisitorContinueKind {
@@ -651,6 +679,7 @@ extension LineWrapper {
         )
 
         self.lines.values[line].breaks.append(.init(index: index, type: type))
+        self.requested += 1
     }
 }
 extension LineWrapper {

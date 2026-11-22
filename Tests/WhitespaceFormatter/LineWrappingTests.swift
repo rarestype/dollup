@@ -368,6 +368,26 @@ import WhitespaceFormatter
         try #expect(WhitespaceFormatter.reformat(input, width: 40) == expected + "\n")
     }
 
+    @Test static func TypeAnnotationBeforeValue() throws {
+        ///                                     | +40
+        let input: String = """
+        let p: (a: Int, b: Int) = f(x: 13, y: 89)
+        let q: Pair<Int, Int> = pair(x: 13, y: 89)
+        """
+        ///                                     | +40
+        let expected: String = """
+        let p: (
+            a: Int,
+            b: Int
+        ) = f(x: 13, y: 89)
+        let q: Pair<Int, Int> = pair(
+            x: 13,
+            y: 89
+        )
+        """
+
+        try #expect(WhitespaceFormatter.reformat(input, width: 40) == expected + "\n")
+    }
     @Test static func StringLiteralLeadingWhitespace() throws {
         let input: String = """
         let x: String = "    foo"
