@@ -477,6 +477,40 @@ import WhitespaceFormatter
 
         try #expect(WhitespaceFormatter.reformat(input, width: 40) == expected + "\n")
     }
+    @Test static func RunOperandsAnchored() throws {
+        ///                                     | +40
+        let input: String = #"""
+        let s: String = """
+        hello
+        """ +
+        "world"
+        let a: [Int] = [
+            1,
+        ] +
+        rest
+        f(aaaaaaaaaaaa, bbbbbbbbbbbbbbbb, ccccccccccc)
+        """#
+        ///                                     | +40
+        let expected: String = #"""
+        let s: String =
+            """
+            hello
+            """ +
+            "world"
+        let a: [Int] =
+            [
+                1,
+            ] +
+            rest
+        f(
+            aaaaaaaaaaaa,
+            bbbbbbbbbbbbbbbb,
+            ccccccccccc
+        )
+        """#
+
+        try #expect(WhitespaceFormatter.reformat(input, width: 40) == expected + "\n")
+    }
     @Test static func InitializerJoinedAfterWrapping() throws {
         ///                                     | +40
         let input: String = """

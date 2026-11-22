@@ -120,6 +120,13 @@ import WhitespaceFormatter
         c
         k += a +
         b
+        let d: Int = a ?? try b +
+        c
+        let e: Double = a * b +
+        c * d as Double
+        let f: Int = a +
+        try b
+        * c
         let lead: Int = a
         + b
         func f() -> Int {
@@ -142,6 +149,15 @@ import WhitespaceFormatter
             c
         k += a +
         b
+        let d: Int =
+            a ?? try b +
+            c
+        let e: Double =
+            a * b +
+            c * d as Double
+        let f: Int = a +
+        try b
+            * c
         let lead: Int = a
             + b
         func f() -> Int {

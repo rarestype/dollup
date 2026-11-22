@@ -17,4 +17,21 @@ extension SequenceExprSyntax {
             return nil
         }
     }
+
+    /// The elements of the run of ternaries or of operators that this sequence lines up after
+    /// the `=` of an assignment or a binding, or after an argument label.
+    var alignedRun: Slice<ExprListSyntax>? {
+        if  let (_, value): (AssignmentExprSyntax, Slice<ExprListSyntax>) = self.assignedRun {
+            return value
+        }
+        switch self.parent?.as(SyntaxEnum.self) {
+        case .initializerClause?:
+            break
+        case .labeledExpr(let argument)? where argument.colon != nil:
+            break
+        default:
+            return nil
+        }
+        return ExprSyntax.isRun(self.elements) ? self.elements[...] : nil
+    }
 }
