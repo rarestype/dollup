@@ -23,14 +23,14 @@ extension WhitespaceFormatter {
             $0.width = width
         }
         var source: String = source
-        try formatter.reformatIdempotently(&source)
+        try formatter.reformat(&source)
         return source
     }
 }
 extension WhitespaceFormatter {
     /// Reformats the source, and records an issue if reformatting the result again would
     /// change it.
-    func reformatIdempotently(_ source: inout String) throws {
+    func reformat(_ source: inout String) throws {
         try self.reformat(&source, check: true)
 
         var again: String = source

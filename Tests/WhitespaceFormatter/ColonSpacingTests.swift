@@ -131,7 +131,7 @@ extension ColonSpacingTests {
     private static func format(_ input: consuming String) throws -> String {
         let formatter: WhitespaceFormatter = .init { $0.formatColonPadding = true }
         var input: String = input
-        try formatter.reformatIdempotently(&input)
+        try formatter.reformat(&input)
         return input
     }
 }
