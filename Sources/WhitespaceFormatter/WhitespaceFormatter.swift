@@ -1,4 +1,3 @@
-import SwiftParser
 import SwiftSyntax
 
 /// This pass detects Google-style “code rectangles”, and reformats Swift code to fit within a
