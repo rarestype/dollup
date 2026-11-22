@@ -50,3 +50,77 @@ extension ExprSyntax {
         }
     }
 }
+extension ExprSyntax {
+    /// Whether the line wrapper can break this expression at brackets of its own that are
+    /// still on one line: a call, subscript, or macro expansion with arguments or a trailing
+    /// closure, a non-empty array, dictionary, or tuple literal, or a closure that is not an
+    /// empty `{}`, possibly marked with `try`, `await`, or `unsafe`.
+    var makesRoom: Bool {
+        switch self.as(ExprSyntaxEnum.self) {
+        case .tryExpr(let expression):
+            return expression.expression.makesRoom
+        case .awaitExpr(let expression):
+            return expression.expression.makesRoom
+        case .unsafeExpr(let expression):
+            return expression.expression.makesRoom
+        case .functionCallExpr(let call):
+            return Self.makesRoom(
+                arguments: call.arguments,
+                between: (call.leftParen, call.rightParen),
+                trailingClosure: call.trailingClosure
+            )
+        case .subscriptCallExpr(let call):
+            return Self.makesRoom(
+                arguments: call.arguments,
+                between: (call.leftSquare, call.rightSquare),
+                trailingClosure: call.trailingClosure
+            )
+        case .macroExpansionExpr(let call):
+            return Self.makesRoom(
+                arguments: call.arguments,
+                between: (call.leftParen, call.rightParen),
+                trailingClosure: call.trailingClosure
+            )
+        case .arrayExpr(let literal):
+            return !literal.elements.isEmpty && !literal.containsInteriorNewlines
+        case .dictionaryExpr(let literal):
+            if  case .elements = literal.content {
+                return !literal.containsInteriorNewlines
+            } else {
+                return false
+            }
+        case .tupleExpr(let literal):
+            return !literal.elements.isEmpty && !literal.containsInteriorNewlines
+        case .closureExpr(let closure):
+            return Self.makesRoom(closure: closure)
+        default:
+            return false
+        }
+    }
+
+    private static func makesRoom(
+        arguments: LabeledExprListSyntax,
+        between delimiters: (TokenSyntax?, TokenSyntax?),
+        trailingClosure: ClosureExprSyntax?
+    ) -> Bool {
+        if  let left: TokenSyntax = delimiters.0,
+            let right: TokenSyntax = delimiters.1,
+           !arguments.isEmpty,
+           !arguments.containsInteriorNewlines(between: (left, right)) {
+            return true
+        }
+        if  let closure: ClosureExprSyntax = trailingClosure {
+            return Self.makesRoom(closure: closure)
+        }
+        return false
+    }
+    /// Whether the line wrapper can break a closure that is still on one line, which it
+    /// cannot if the closure is an empty `{}`.
+    private static func makesRoom(closure: ClosureExprSyntax) -> Bool {
+        if  closure.statements.isEmpty,
+            case nil = closure.signature {
+            return false
+        }
+        return !closure.containsInteriorNewlines
+    }
+}
