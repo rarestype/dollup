@@ -83,6 +83,8 @@ swift run dollup [file-path]
 
 When a directory is provided, `dollup` will recursively format all `.swift` files within it.
 
+[How dollup lays out code](Docs/Layout.md) describes the rules it follows, so you can predict what it will do to a line.
+
 ### Checking file organization
 
 To check that Swift files adhere to the One Type Per File (OTPF) file organization standard, run `dollup check`:
