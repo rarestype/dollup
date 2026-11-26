@@ -70,9 +70,7 @@ extension DollupCommand.Distribute: ParsableCommand {
                 source: Self.plugin(
                     verb: Configuration.verb,
                     action: (subcommand: "format", progress: "Formatting"),
-                    hint: """
-                    ; to check source files, run 'swift package \(Configuration.checkVerb)'
-                    """
+                    hint: "to check the package, run 'swift package \(Configuration.checkVerb)'"
                 )
             ),
             (
@@ -80,7 +78,7 @@ extension DollupCommand.Distribute: ParsableCommand {
                 source: Self.plugin(
                     verb: Configuration.checkVerb,
                     action: (subcommand: "check", progress: "Checking"),
-                    hint: ""
+                    hint: "to check particular files, run '\(Configuration.name) check' on them"
                 )
             ),
         ]
@@ -212,11 +210,12 @@ extension DollupCommand.Distribute {
                     _ = extractor.extractOption(named: option)
                 }
                 if  let argument: String = extractor.remainingArguments.first,
-                    !argument.starts(with: "-") {
+                       !argument.starts(with: "-") {
                     Diagnostics.error(
                         """
                         💔 '\#(verb)' \#(action.subcommand)s the whole package, so it takes no \
-                        subcommands or paths, but was given '\(argument)'\#(hint)
+                        subcommands or paths, but was given '\(argument)'; \
+                        \#(hint)
                         """
                     )
                     return
