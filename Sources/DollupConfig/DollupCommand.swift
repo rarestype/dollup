@@ -12,6 +12,7 @@ extension DollupCommand: ParsableCommand
                 Format.self,
                 Check.self,
                 FormatAsPlugin.self,
+                CheckAsPlugin.self,
                 Bundle.self,
                 Distribute.self,
             ],

@@ -34,10 +34,16 @@ dependencies: [
 
 <!-- DO NOT EDIT ABOVE! AUTOSYNC CONTENT [ManifestDependency] -->
 
-Adding the binary package dependency will automatically make the plugin available.
+Adding the binary package dependency will automatically make the plugins available.
 
 ```bash
 swift package dollup --allow-writing-to-package-directory
+```
+
+To check that the package follows the [One Type Per File](#checking-file-organization) standard, run the `dollup-check` plugin. It only reads the package, so it needs no permissions.
+
+```bash
+swift package dollup-check
 ```
 
 Some people find it helpful to add formatting enforcement to their CI pipelines.
@@ -48,6 +54,8 @@ Some people find it helpful to add formatting enforcement to their CI pipelines.
         swift package dollup --allow-writing-to-package-directory
         git diff --exit-code
 ```
+
+Both plugins work on the whole package. They don’t take subcommands or paths; to work on particular files, run the `dollup` executable directly.
 
 Note that prebuilt binaries are only available for select platforms.
 
