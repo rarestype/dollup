@@ -956,6 +956,66 @@ try {
 ```
 
 
+#### Make lookups as cheap as they look
+
+A subscript reads as constant time at the call site, so never hide a search behind one. If answering the question takes a search, either keep a table that answers it directly, or make it a method.
+
+A method or property may search, as long as its documentation says so. A name shaped like a lookup, such as `borrower(of:)`, doesn’t promise constant time on its own, but readers will assume it unless the documentation tells them otherwise.
+
+```swift
+// good — the subscript is one dictionary lookup
+extension Library {
+    subscript(borrower book: BookID) -> MemberID? {
+        self.loans[book]
+    }
+}
+
+// good — the method searches, and its documentation says so
+extension Library {
+    /// The member who has borrowed `book`. This checks every member, so it takes time
+    /// proportional to the number of members.
+    func borrower(of book: BookID) -> MemberID? {
+        self.members.first { $0.books.contains(book) }?.id
+    }
+}
+
+// bad — looks like a lookup, but walks every member
+extension Library {
+    subscript(borrower book: BookID) -> MemberID? {
+        self.members.first { $0.books.contains(book) }?.id
+    }
+}
+```
+
+
+#### Report a missing entry from the type that owns the table
+
+When a missing entry is an error, the type that owns the table should throw it, from a throwing subscript such as `subscript(defined:)`. Otherwise every caller invents its own error for the same failure, and the errors drift apart.
+
+```swift
+// good — the catalog knows what a missing product means
+extension Catalog {
+    subscript(defined id: ProductID) -> Product {
+        get throws {
+            guard
+            let product: Product = self[id] else {
+                throw CatalogError.undefined(id)
+            }
+            return product
+        }
+    }
+}
+
+let product: Product = try catalog[defined: id]
+
+// bad — each caller decides what a missing product means
+guard
+let product: Product = catalog[id] else {
+    throw OrderError.unknownProduct(id)
+}
+```
+
+
 #### Mutating entire collections in-place
 
 When mutating collection elements in a loop, don’t cross subscript boundaries multiple times. Call the subscript once, as you would when mutating a dictionary value.
@@ -1325,7 +1385,14 @@ When the stages are shared between a reviewer and an author, keep to one stage a
 
 **Architectural review** is exactly what it sounds like — coming at a set of code changes with fresh eyes, taking a step back, and assessing whether those changes were ever a good idea in the first place. Comb new systems for redundancies and assess whether historical fallbacks and migration aids are still needed in the present day. Be on the lookout for convoluted workarounds stemming from limitations of internal libraries we maintain — this often serves as a hint that a GitHub issue should be filed against one of those libraries.
 
-Be bold and be picky — do not be afraid to send a PR back to the team for more work. The Queen will override you frequently, don’t be offended when this happens, as the motivation is to encourage you to criticize aggressively.
+For every API that a change adds or reshapes, ask two questions, and answer them in the review:
+
+- **What does each lookup cost?** Check that subscripts are constant time, that methods and properties which search say so (see “Make lookups as cheap as they look”), and that nothing walks every element of a collection on a path that runs often.
+- **Where does each piece of state live?** Check that each fact is stored once, in the layer that owns it. State that only one consumer reads belongs with that consumer, not in a model that everything shares, and a fact stored in two places will eventually disagree with itself.
+
+These questions are about the design, not its behavior, so tests that pass and output that matches the base branch don’t answer them.
+
+Be bold and be picky — do not be afraid to send a PR back to the team for more work. A Queen will override you frequently, don’t be offended when this happens, as the motivation is to encourage you to criticize aggressively.
 
 ### Cleanup and cultural circulation
 
