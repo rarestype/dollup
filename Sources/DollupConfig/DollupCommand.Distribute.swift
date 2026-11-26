@@ -69,7 +69,7 @@ extension DollupCommand.Distribute: ParsableCommand {
                 name: Configuration.plugin,
                 source: self.plugin(
                     verb: Configuration.verb,
-                    action: (subcommand: nil, progress: "Formatting", failure: "format"),
+                    action: (subcommand: "format", progress: "Formatting"),
                     hint: """
                     ; to check source files, run 'swift package \(Configuration.checkVerb)'
                     """
@@ -79,7 +79,7 @@ extension DollupCommand.Distribute: ParsableCommand {
                 name: Configuration.checkPlugin,
                 source: self.plugin(
                     verb: Configuration.checkVerb,
-                    action: (subcommand: "check", progress: "Checking", failure: "check"),
+                    action: (subcommand: "check", progress: "Checking"),
                     hint: ""
                 )
             ),
@@ -183,29 +183,39 @@ extension DollupCommand.Distribute {
     }
 
     /// The source of a generated command plugin. It runs the tool on the package manifest
-    /// and plugins with `action.subcommand`, or the default subcommand if nil, then runs the
-    /// `-as-plugin` form of that subcommand on the Swift files of each target. The plugin
-    /// refuses a first argument that isn’t an option, which it would otherwise ignore.
+    /// and plugins with `action.subcommand`, then runs the `-as-plugin` form of that
+    /// subcommand on the Swift files of each target. The plugin sets aside the options that
+    /// SwiftPM passes through, and refuses a subcommand or path, which it would otherwise
+    /// ignore.
     func plugin(
         verb: String,
-        action: (subcommand: String?, progress: String, failure: String),
+        action: (subcommand: String, progress: String),
         hint: String
     ) -> String {
-        let subcommand: (package: String, target: String) = action.subcommand.map {
-            (package: "[\"\($0)\"] + paths", target: "\($0)-as-plugin")
-        } ?? (package: "paths", target: "format-as-plugin")
-        return #"""
+        #"""
         import Foundation
         import PackagePlugin
 
         @main struct Main: CommandPlugin {
             func performCommand(context: PluginContext, arguments: [String]) async throws {
-                // SwiftPM passes its own options through, so only refuse a subcommand or path
-                if  let argument: String = arguments.first,
+                // SwiftPM reads its own options anywhere after the verb, and still passes
+                // them through, so set them aside before refusing a subcommand or path
+                var extractor: ArgumentExtractor = .init(arguments)
+                for flag: String in ["allow-writing-to-package-directory", "disable-sandbox"] {
+                    _ = extractor.extractFlag(named: flag)
+                }
+                for option: String in [
+                        "allow-writing-to-directory",
+                        "allow-network-connections",
+                        "package",
+                    ] {
+                    _ = extractor.extractOption(named: option)
+                }
+                if  let argument: String = extractor.remainingArguments.first,
                     !argument.starts(with: "-") {
                     Diagnostics.error(
                         """
-                        💔 '\#(verb)' \#(action.failure)s the whole package, so it takes no \
+                        💔 '\#(verb)' \#(action.subcommand)s the whole package, so it takes no \
                         subcommands or paths, but was given '\(argument)'\#(hint)
                         """
                     )
@@ -224,7 +234,7 @@ extension DollupCommand.Distribute {
                 if  FileManager.default.fileExists(atPath: plugins.path) {
                     paths.append(plugins.path)
                 }
-                try Self.run(tool, arguments: \#(subcommand.package))
+                try Self.run(tool, arguments: ["\#(action.subcommand)"] + paths)
 
                 for case let target as SwiftSourceModuleTarget in context.package.targets {
                     let files: FileList = target.sourceFiles(withSuffix: ".swift")
@@ -244,7 +254,7 @@ extension DollupCommand.Distribute {
                     try list.write(to: filelist, atomically: true, encoding: .utf8)
 
                     var invocation: [String] = [
-                        "\#(subcommand.target)",
+                        "\#(action.subcommand)-as-plugin",
                         "--target", target.name,
                     ]
                     for dependency: any Target in target.recursiveTargetDependencies {
@@ -264,7 +274,7 @@ extension DollupCommand.Distribute {
                 case 0 = process.terminationStatus else {
                     Diagnostics.error(
                         """
-                        💔 \#(Configuration.name) \#(action.failure) failed: \
+                        💔 \#(Configuration.name) \#(action.subcommand) failed: \
                         \(process.terminationReason), \(process.terminationStatus)
                         """
                     )

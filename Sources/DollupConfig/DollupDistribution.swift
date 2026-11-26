@@ -14,7 +14,7 @@ public protocol DollupDistribution {
 }
 extension DollupDistribution {
     public static var verb: String { Self.name }
-    public static var checkVerb: String { "\(Self.verb)-check" }
+    public static var checkVerb: String { "\(Self.name)-check" }
     public static var checkPlugin: String { "\(Self.plugin)Check" }
 }
 extension DollupDistribution where Self: DollupConfiguration {
