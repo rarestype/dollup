@@ -67,7 +67,7 @@ extension DollupCommand.Distribute: ParsableCommand {
         let plugins: [(name: String, source: String)] = [
             (
                 name: Configuration.plugin,
-                source: self.plugin(
+                source: Self.plugin(
                     verb: Configuration.verb,
                     action: (subcommand: "format", progress: "Formatting"),
                     hint: """
@@ -77,7 +77,7 @@ extension DollupCommand.Distribute: ParsableCommand {
             ),
             (
                 name: Configuration.checkPlugin,
-                source: self.plugin(
+                source: Self.plugin(
                     verb: Configuration.checkVerb,
                     action: (subcommand: "check", progress: "Checking"),
                     hint: ""
@@ -187,7 +187,7 @@ extension DollupCommand.Distribute {
     /// subcommand on the Swift files of each target. The plugin sets aside the options that
     /// SwiftPM passes through, and refuses a subcommand or path, which it would otherwise
     /// ignore.
-    func plugin(
+    static func plugin(
         verb: String,
         action: (subcommand: String, progress: String),
         hint: String
@@ -230,11 +230,11 @@ extension DollupCommand.Distribute {
                     "Plugins"
                 )
 
-                var paths: [String] = [manifest.path]
+                var invocation: [String] = ["\#(action.subcommand)", manifest.path]
                 if  FileManager.default.fileExists(atPath: plugins.path) {
-                    paths.append(plugins.path)
+                    invocation.append(plugins.path)
                 }
-                try Self.run(tool, arguments: ["\#(action.subcommand)"] + paths)
+                try Self.run(tool, arguments: invocation)
 
                 for case let target as SwiftSourceModuleTarget in context.package.targets {
                     let files: FileList = target.sourceFiles(withSuffix: ".swift")
