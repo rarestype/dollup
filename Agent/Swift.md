@@ -958,30 +958,31 @@ try {
 
 #### Make lookups as cheap as they look
 
-A subscript, or a method shaped like a lookup, such as `borrower(of:)` or `price(for:)`, reads as constant time at the call site. Never hide a search behind one. If answering the question takes a search, either keep a table that answers it directly, or name the API as a search, so that its cost shows where it is called.
+A subscript reads as constant time at the call site, so never hide a search behind one. If answering the question takes a search, either keep a table that answers it directly, or make it a method.
+
+A method or property may search, as long as its documentation says so. A name shaped like a lookup, such as `borrower(of:)`, doesn’t promise constant time on its own, but readers will assume it unless the documentation tells them otherwise.
 
 ```swift
-// good — the table answers in one lookup
+// good — the subscript is one dictionary lookup
 extension Library {
-    func borrower(of book: BookID) -> MemberID? {
+    subscript(borrower book: BookID) -> MemberID? {
         self.loans[book]
     }
 }
 
-// good — the name says that it searches
+// good — the method searches, and its documentation says so
 extension Library {
-    func firstMember(holding book: BookID) -> MemberID? {
+    /// The member who has borrowed `book`. This checks every member, so it takes time
+    /// proportional to the number of members.
+    func borrower(of book: BookID) -> MemberID? {
         self.members.first { $0.books.contains(book) }?.id
     }
 }
 
 // bad — looks like a lookup, but walks every member
 extension Library {
-    func borrower(of book: BookID) -> MemberID? {
-        for member: Member in self.members where member.books.contains(book) {
-            return member.id
-        }
-        return nil
+    subscript(borrower book: BookID) -> MemberID? {
+        self.members.first { $0.books.contains(book) }?.id
     }
 }
 ```
@@ -1386,12 +1387,12 @@ When the stages are shared between a reviewer and an author, keep to one stage a
 
 For every API that a change adds or reshapes, ask two questions, and answer them in the review:
 
-- **What does each lookup cost?** Check that anything which looks like a lookup is one (see “Make lookups as cheap as they look”), and that nothing walks every element of a collection on a path that runs often.
+- **What does each lookup cost?** Check that subscripts are constant time, that methods and properties which search say so (see “Make lookups as cheap as they look”), and that nothing walks every element of a collection on a path that runs often.
 - **Where does each piece of state live?** Check that each fact is stored once, in the layer that owns it. State that only one consumer reads belongs with that consumer, not in a model that everything shares, and a fact stored in two places will eventually disagree with itself.
 
 These questions are about the design, not its behavior, so tests that pass and output that matches the base branch don’t answer them.
 
-Be bold and be picky — do not be afraid to send a PR back to the team for more work. The Queen will override you frequently, don’t be offended when this happens, as the motivation is to encourage you to criticize aggressively.
+Be bold and be picky — do not be afraid to send a PR back to the team for more work. A Queen will override you frequently, don’t be offended when this happens, as the motivation is to encourage you to criticize aggressively.
 
 ### Cleanup and cultural circulation
 
